@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJ Wasm Pthreads Test</title>
+    
+    <!-- 
+      Load the Cross-Origin Isolation service worker.
+      This file (coi-serviceworker.js) must be in the same directory.
+      It sets the required COOP/COEP headers to enable SharedArrayBuffer (for Pthreads).
+    -->
+    <script src="coi-serviceworker.js"></script>
+
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f4; }
+        h1 { color: #333; }
+        #output {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 1em;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>PROJ WebAssembly Pthreads Test</h1>
+    <p>Loading module and running transformation...</p>
+    <div id="output"></div>
+
+    <!-- 
+      IMPORTANT: The coi-serviceworker.js script loaded in the <head>
+      handles setting the necessary Cross-Origin Isolation headers.
+    -->
+
+    <!-- Load the Emscripten 'glue' code -->
+    <script src="projModule.js"></script>
+    <script>
+        const outputEl = document.getElementById('output');
+    
+        function log(message, type = 'log') {
+            const statusClass = type === 'success' ? 'success' : (type === 'error' ? 'error' : '');
+            outputEl.innerHTML += `<div class="${statusClass}">${message}</div>`;
+            const t = type === 'success' ? 'info' : type;
+            console[t](message);
+        }
+
+        async function runProjTest(Module) {
+            log("Module factory loaded. Running test...");
+            
+            // FIX: In the browser, the factory name 'ModuleFactory' creates a global object
+            // named 'Module'. We do not call it, we just use it.
+            const instance = Module;
+            log("PROJ module loaded. Initializing Pthreads...");
+
+            // --- 1. Get PROJ Version ---
+            log("1. Checking PROJ version...");
+            try {
+                const major = instance._get_proj_version_major();
+                const minor = instance._get_proj_version_minor();
+                const patch = instance._get_proj_version_patch();
+                log(`PROJ Version: ${major}.${minor}.${patch}`, 'success');
+            } catch (e) {
+                log(`Failed to get version: ${e.message}`, 'error');
+                return;
+            }
+            const dat = instance.UTF8ToString(instance._get_compilation_date());
+            log(`Compilation date ${dat}`);
+
+            // --- 2. Create PROJ Context ---
+            log("2. Creating PROJ context...");
+            let ctx = 0;
+            try {
+                ctx = instance._proj_context_create();
+                if (ctx === 0) {
+                    throw new Error("proj_context_create returned NULL");
+                }
+                log(`Context created (ptr: ${ctx})`, 'success');
+            } catch (e) {
+                log(`TEST FAILED: ${e.message}`, 'error');
+                return;
+            }
+
+            // --- 3. Create Transformation ---
+            log("3. Creating transformation (ETRS89 to DHDN)...");
+            let P = 0;
+            let enable_network = 1;
+            try {
+                log(`Enable network ${enable_network}`)
+                instance._proj_context_set_enable_network(ctx, enable_network); // enable network
+                // We must allocate memory for the C-strings (source and target CRS)
+                const sourceCRS = instance.stringToNewUTF8("EPSG:4258"); // ETRS89
+                const targetCRS = instance.stringToNewUTF8("EPSG:5677"); // DHDN / 3-degree Gauss-Kruger zone 3 (E-N)
+                //return();
+                P = instance._proj_create_crs_to_crs(
+                    ctx, sourceCRS, targetCRS, 0
+                );
+
+                // Create the transformation object using the context
+                // P = instance._proj_create_from_database(
+                //     ctx,          // The context
+                //     sourceCRS,    // Source CRS
+                //     targetCRS,    // Target CRS
+                //     0,            // Use default area of use
+                //     null,         // No custom options
+                //     null          // No context options
+                // );
+                
+                // Free the memory we allocated for the strings
+                instance._free(sourceCRS);
+                instance._free(targetCRS);
+
+                if (P === 0) {
+                    throw new Error("proj_create_from_database returned NULL. Is proj.db embedded?");
+                }
+                log(`Transformation created (ptr: ${P})`, 'success');
+
+            } catch (e) {
+                log(`TEST FAILED: ${e.message}`, 'error');
+                if (ctx !== 0) instance._proj_context_destroy(ctx); // Clean up context
+                return;
+            }
+            
+            // --- 4. Perform Transformation ---
+            let lat = 54.8;
+            let lon = 9.0;
+            log(`4. Transforming coordinate (lat=${lat}, lon=${lon})...`);
+            try {
+                // Create a PROJ_COORD struct in memory
+                // PJ_COORD is 4 doubles: (x, y, z, t) or (lon, lat, z, t)
+                // We need 4 * 8 = 32 bytes of memory
+                const coordPtr = instance._malloc(32); 
+                
+                // Get a view of the memory as 64-bit floats
+                const coordView = new Float64Array(instance.HEAPF64.buffer, coordPtr, 4);
+                
+                // Set the input coordinate (lon/lat for EPSG:4326)
+                // Note: PROJ expects radians for transformations
+                coordView[0] = lat;
+                coordView[1] = lon;
+                coordView[2] = 0.0; // z
+                coordView[3] = 0.0; // t
+
+                // Perform the transformation
+                let coordPtrRes = instance._malloc(32); 
+                //coordPtrRes = instance._proj_trans(P, 1, coordPtr, 1, 32, 0); // PJ_FWD, 1 coord, ptr, stride, stride
+                let res = instance._proj_trans_array(P, 1, 1, coordPtr); // PJ_FWD, 1 coord, ptr, stride, stride
+                
+                // Read the output coordinate
+                const outX = coordView[0];
+                const outY = coordView[1];
+                const outZ = coordView[2];
+                
+                log(`Transformed: x=${outX.toFixed(2)}, y=${outY.toFixed(2)}, z=${outZ.toFixed(2)}`, 'success');
+                return; //////////////////////////
+                // --- 5. Clean up ---
+                log("5. Cleaning up memory...");
+                instance._free(coordPtr);
+                instance._proj_destroy(P);
+                instance._proj_context_destroy(ctx);
+                log("Cleanup complete.", 'success');
+
+            } catch (e) {
+                log(`TEST FAILED: ${e.message}`, 'error');
+                if (P !== 0) instance._proj_destroy(P);
+                if (ctx !== 0) instance._proj_context_destroy(ctx);
+            }
+        }
+    
+        // --- Module Initialization ---
+        // Wrap initialization in window.onload to prevent a race condition.
+        window.onload = function() {
+            // Check if the factory function created the Module object
+            if (typeof ModuleFactory === 'undefined') {
+                log("Fatal Error: 'Module' object not found. Did projModule.js load correctly?", 'error');
+                console.error("'Module' is not defined on the window object.");
+                return;
+            }
+
+            // The 'Module' object will have a 'then' property if it's still initializing
+            // We wait for it to be fully ready.
+            ModuleFactory().then(instance => {
+                // In some Emscripten versions, Module.then provides the instance.
+                // In others, the global 'Module' object IS the instance.
+                // We'll use the instance if provided, otherwise default to the global 'Module'
+                runProjTest(instance || Module);
+            }).catch(err => {
+                log(`Failed to instantiate Wasm module: ${err}`, 'error');
+                log("This often fails if the required Cross-Origin HTTP headers are not set by the server or coi-serviceworker.js.", 'error');
+            });
+        };
+
+    </script>
+</body>
+</html>
