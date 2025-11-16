@@ -28,7 +28,7 @@ RUN apt-get update && \
 # --- Install Emscripten SDK ---
 # Set paths for Emscripten
 ENV EMSDK_PATH="/emsdk"
-ENV EMSDK_VERSION="3.1.55"
+ENV EMSDK_VERSION="4.0.5"
 
 # Clone the Emscripten SDK
 RUN git clone https://github.com/emscripten-core/emsdk.git ${EMSDK_PATH}

@@ -175,7 +175,7 @@ fi
 cd ${PROJ_SRC_DIR}
 
 # --- 6. Build and Install PROJ ---
-# This step uses the NATIVE sqlite3 binary (from the Docker image)
+# This step uses the NATIVE sqlite3 binary
 # to generate proj.db, which is then embedded into libproj.a.
 
 log_step "6. Building and Installing PROJ"
@@ -220,6 +220,7 @@ log_step "6.5 Creating C Wrapper Functions"
 DDD=`date +"%Y-%m-%dT%H:%M:%S%z" -u`
 cat << EOF > ${BUILD_DIR}/proj_wrappers.c
 #include "proj.h"
+#include "math.h"
 
 const char* get_compilation_date() {
     return "$DDD" ;
@@ -238,6 +239,11 @@ int get_proj_version_minor() {
 // Simple function to return the PATCH version number
 int get_proj_version_patch() {
     return PROJ_VERSION_PATCH;
+}
+
+// Get HUGE_VAL, that is platform dependant.
+double get_huge_val() {
+    return HUGE_VAL;
 }
 EOF
 
@@ -263,9 +269,14 @@ FINAL_LIBS="${INSTALL_DIR}/lib/libproj.a \
 # Note: We no longer need --preload-file for proj.db
 # It is now embedded directly in libproj.a by the build process in Step 6.
 
+    #-O0 -g \
 emcc ${FINAL_LIBS} \
     -o ${INSTALL_DIR}/projModule.js \
     -O3 \
+    -s STACK_OVERFLOW_CHECK=2 \
+    -s STACK_SIZE=5MB \
+    -s ASSERTIONS \
+    -s NO_DISABLE_EXCEPTION_CATCHING \
     -s FETCH=1 \
     -s USE_PTHREADS=1 \
     -s FETCH_SUPPORT_INDEXEDDB=0 \
@@ -274,11 +285,12 @@ emcc ${FINAL_LIBS} \
     -s PTHREAD_POOL_SIZE=1 \
     -s WASM=1 \
     -s MODULARIZE=1 \
-    -s EXPORT_NAME="'ModuleFactory'" \
+    -s EXPORT_NAME="'ProjModuleFactory'" \
     -s FORCE_FILESYSTEM=1 \
     -s ALLOW_MEMORY_GROWTH=1 \
-    -s EXPORTED_RUNTIME_METHODS="['ccall','cwrap','FS','stringToNewUTF8','UTF8ToString']" \
+    -s EXPORTED_RUNTIME_METHODS="['ccall','cwrap','FS','HEAPF64','stringToNewUTF8','UTF8ToString']" \
     -s EXPORTED_FUNCTIONS="['_get_proj_version_major', '_get_proj_version_minor', '_get_proj_version_patch', 
+     '_get_huge_val',
      '_get_compilation_date',
      '_proj_context_set_enable_network', '_proj_create',
      '_proj_context_create', '_proj_create_from_database', '_proj_create_crs_to_crs', 
