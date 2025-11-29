@@ -15,7 +15,7 @@ DEPS_SRC_DIR="${BUILD_DIR}/deps_src"
 TEMP_BUILD_DIR="${BUILD_DIR}/temp_build"
 
 # Emscripten flags for Pthreads (multithreading support)
-EM_PTHREADS_FLAGS="-pthread -matomics -mbulk-memory"
+EM_PTHREADS_FLAGS="-pthread -matomics -mbulk-memory -fexceptions"
 EM_LINKER_PTHREADS_FLAGS="-s USE_PTHREADS=1"
 
 
@@ -226,24 +226,8 @@ const char* get_compilation_date() {
     return "$DDD" ;
 }
 
-// Simple function to return the MAJOR version number
-int get_proj_version_major() {
-    return PROJ_VERSION_MAJOR;
-}
-
-// Simple function to return the MINOR version number
-int get_proj_version_minor() {
-    return PROJ_VERSION_MINOR;
-}
-
-// Simple function to return the PATCH version number
-int get_proj_version_patch() {
-    return PROJ_VERSION_PATCH;
-}
-
-// Get HUGE_VAL, that is platform dependant.
-double get_huge_val() {
-    return HUGE_VAL;
+int get_proj_info_sizeof() {
+    return sizeof(PJ_INFO);
 }
 EOF
 
@@ -270,6 +254,9 @@ FINAL_LIBS="${INSTALL_DIR}/lib/libproj.a \
 # It is now embedded directly in libproj.a by the build process in Step 6.
 
     #-O0 -g \
+    #-O3 \
+    #-s PTHREAD_POOL_SIZE=2 \
+
 emcc ${FINAL_LIBS} \
     -o ${INSTALL_DIR}/projModule.js \
     -O3 \
@@ -282,18 +269,20 @@ emcc ${FINAL_LIBS} \
     -s FETCH_SUPPORT_INDEXEDDB=0 \
     -s ASYNCIFY=1 \
     -s ASYNCIFY_STACK_SIZE=16384 \
-    -s PTHREAD_POOL_SIZE=1 \
     -s WASM=1 \
     -s MODULARIZE=1 \
     -s EXPORT_NAME="'ProjModuleFactory'" \
     -s FORCE_FILESYSTEM=1 \
     -s ALLOW_MEMORY_GROWTH=1 \
-    -s EXPORTED_RUNTIME_METHODS="['ccall','cwrap','FS','HEAPF64','stringToNewUTF8','UTF8ToString']" \
-    -s EXPORTED_FUNCTIONS="['_get_proj_version_major', '_get_proj_version_minor', '_get_proj_version_patch', 
-     '_get_huge_val',
+    -s EXPORTED_RUNTIME_METHODS="['ccall','cwrap','FS','HEAPF64','stringToNewUTF8','UTF8ToString','getValue']" \
+    -s EXPORTED_FUNCTIONS="[
+     '_get_proj_info_sizeof',
      '_get_compilation_date',
-     '_proj_context_set_enable_network', '_proj_create',
-     '_proj_context_create', '_proj_create_from_database', '_proj_create_crs_to_crs', 
+     '_proj_info',
+     '_proj_context_errno_string',
+     '_proj_context_create', '_proj_context_set_enable_network',
+     '_proj_create', '_proj_create_from_database',
+     '_proj_create_crs_to_crs', '_proj_create_crs_to_crs_from_pj',
      '_proj_context_destroy',
      '_proj_destroy', '_proj_trans', '_proj_trans_array', '_malloc', '_free']" \
     ${EM_PTHREADS_FLAGS}

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJ Wasm Pthreads Test</title>
+
+    <!-- 
+      Load the Cross-Origin Isolation service worker.
+      This file (coi-serviceworker.js) must be in the same directory.
+      It sets the required COOP/COEP headers to enable SharedArrayBuffer (for Pthreads).
+    -->
+    <script src="coi-serviceworker.js"></script>
+
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f4; }
+        h1 { color: #333; }
+        #output {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 1em;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+        .hidden {display: none;}
+    </style>
+</head>
+<body>
+    <h1>PROJ WebAssembly Pthreads Test</h1>
+    <p id="loading">Loading module... &#8987;</p>
+    <div>
+        <label for="src">src: </label><input type="text" id="src" name="src" required size="15" placeholder="EPSG:4258" value="EPSG:4258"/>
+        <label for="dst">dst: </label><input type="text" id="dst" name="dst" required size="15" placeholder="EPSG:5677" value="EPSG:5677"/>
+    </div>
+    <div>
+        <label for="network">use network:</label><input type="checkbox" id="network" name="network" checked/>
+    </div>
+    <div>
+        <label for="x">x: </label><input type="text" id="x" name="x" required size="10" placeholder="54.8" value="54.8"/>
+        <label for="y">y: </label><input type="text" id="y" name="y" required size="10" placeholder="9.0" value="9.0"/>
+        <label for="z">z: </label><input type="text" id="z" name="z" required size="10" placeholder="0.0" value="0.0"/>
+    </div>
+    <input type="button" value="Compute" id="compute" disabled/>
+    <input type="button" value="Clean" id="clean"/> <span id="waiting" class="hidden">&#8987;</span>
+    <div id="output"></div>
+
+    <script>
+        let last_now = performance.now();
+        let projWorker = null;
+
+        const outputEl = document.getElementById('output');
+
+        function log(message, type = 'log') {
+            const statusClass = type === 'success' ? 'success' : (type === 'error' ? 'error' : '');
+            outputEl.innerHTML += `<div class="${statusClass}">${message}</div>`;
+            const t = type === 'success' ? 'info' : type;
+            console[t](message);
+        }
+
+        function sendTransform() {
+            let use_network = document.getElementById("network").checked;
+            let src = document.getElementById("src").value;
+            let dst = document.getElementById("dst").value;
+            let x = parseFloat(document.getElementById("x").value);
+            let y = parseFloat(document.getElementById("y").value);
+            let z = parseFloat(document.getElementById("z").value);
+            document.getElementById("waiting").classList.remove("hidden");
+            last_now = performance.now();
+            projWorker.postMessage({
+                type: "transform",
+                use_network: use_network,
+                src: src,
+                dst: dst,
+                coord: [x,y,z],
+            });
+        }
+
+        window.onload = function() {
+            // Load proj web worker. It cannot run in the main thread
+            // because it may do synchronous fetch calls.
+            projWorker = new Worker("projWorker.js");
+            projWorker.onmessage = (e) => {
+                document.getElementById("waiting").classList.add("hidden");
+
+                if (e.data.loaded) {
+                    document.getElementById("compute").disabled = false;
+                    document.getElementById("loading").classList.add("hidden");
+                    projWorker.postMessage({type: "info"});
+                    const now = performance.now();
+                    console.log(`module loaded in ${Math.round(now - last_now)} ms`);
+                } else if (e.data.type == "info") {
+                    const info = e.data.info;
+                    log(`PROJ Version: ${info.version}`, 'success');
+                    log(`Wasm compilation date: ${info.compilation_date}`, 'success');
+                } else if (e.data.type == "transform" && e.data.res) {
+                    const now = performance.now();
+                    console.log(`transform computed in ${Math.round(now - last_now)} ms`);
+                    let [x, y, z] = e.data.res;
+                    log(`Transformed: x=${x}, y=${y}, z=${z}`, 'success');
+                } else if (e.data.error) {
+                    log(e.data.error, 'error');
+                } else {
+                    log(`Unexpected error: ${e.data}`, 'error');
+                }
+                //console.log(`Message received from worker: ${e.data}`);
+            };
+
+            projWorker.onerror = (error) => {
+                document.getElementById("waiting").classList.add("hidden");
+                log(error.message, 'error');
+                console.log(`Worker error: ${error.message}`);
+                throw error;
+            };
+        };
+        document.getElementById("compute").addEventListener("click", sendTransform);
+        document.getElementById("clean").addEventListener("click", () => document.getElementById("output").innerHTML="");
+    </script>
+</body>
+</html>
