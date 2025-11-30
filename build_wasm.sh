@@ -14,10 +14,9 @@ PROJ_SRC_DIR="${BUILD_DIR}/proj_src"
 DEPS_SRC_DIR="${BUILD_DIR}/deps_src"
 TEMP_BUILD_DIR="${BUILD_DIR}/temp_build"
 
-# Emscripten flags for Pthreads (multithreading support)
+# Emscripten flags for Pthreads (multithreading support for synchronous emscripten_fetch)
+# and some other.
 EM_PTHREADS_FLAGS="-pthread -matomics -mbulk-memory -fexceptions"
-EM_LINKER_PTHREADS_FLAGS="-s USE_PTHREADS=1"
-
 
 # --- Utility Functions ---
 
@@ -30,12 +29,12 @@ function log_step {
 function configure_cmake {
     # Use emcmake wrapper to correctly configure the toolchain
     emcmake cmake "$@" \
+        -G Ninja \
         -D CMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
         -D CMAKE_BUILD_TYPE=Release \
         -D BUILD_SHARED_LIBS=OFF \
         -D CMAKE_C_FLAGS="${EM_PTHREADS_FLAGS}" \
         -D CMAKE_CXX_FLAGS="${EM_PTHREADS_FLAGS}" \
-        -D CMAKE_EXE_LINKER_FLAGS="${EM_LINKER_PTHREADS_FLAGS}" \
         -D CMAKE_FIND_ROOT_PATH="${INSTALL_DIR}" \
         -D CMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
         -D CMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
@@ -43,14 +42,17 @@ function configure_cmake {
 }
 
 function build_and_install {
-    # Use emmake wrapper to build and install using the emscripten toolchain
-    emmake make -j$(nproc)
-    emmake make install
+    cmake --build . --parallel $(nproc)
+    cmake --install .
 }
 
 # --- Preparation ---
 
 log_step "1. Setting up Environment and Directories"
+
+if [ "${FORCE_REBUILD}" = "1" ]; then
+    echo "!!! FORCE_REBUILD is set. Existing libraries will be ignored and rebuilt. !!!"
+fi
 
 # Clean build directories to ensure a fresh build
 rm -rf ${TEMP_BUILD_DIR}
@@ -68,21 +70,31 @@ echo "Installation target: ${INSTALL_DIR}"
 
 log_step "2. Building and Installing Zlib"
 
-if [ -f "${INSTALL_DIR}/lib/libz.a" ]; then
-    echo "Zlib static library already found. Skipping build."
+if [ "${FORCE_REBUILD}" != "1" ] && [ -f "${INSTALL_DIR}/lib/libz.a" ] && [ -f "${INSTALL_DIR}/include/zlib.h" ]; then
+    echo "Zlib library and header already installed. Skipping."
 else
     ZLIB_DIR="${DEPS_SRC_DIR}/zlib-1.3.1"
     cd ${DEPS_SRC_DIR}
     if [ ! -f "v1.3.1.zip" ]; then
-        wget "https://github.com/madler/zlib/archive/refs/tags/v1.3.1.zip"
+        wget -nc "https://github.com/madler/zlib/archive/refs/tags/v1.3.1.zip"
     fi
     unzip -qo v1.3.1.zip
     cd ${ZLIB_DIR}
 
+    # Zlib defines both SHARED and STATIC targets with the same output name (libz.a)
+    # on Emscripten, causing Ninja errors.
+    # Fixed in https://github.com/madler/zlib/commit/b3907c2cd99908259c71fab6754f88e25d370fed
+    # Instead of renaming, we simply remove the SHARED target definitions entirely.
+    sed -i '/add_library(zlib SHARED/d' CMakeLists.txt
+    sed -i '/target_include_directories(zlib /d' CMakeLists.txt
+    sed -i '/set_target_properties(zlib /d' CMakeLists.txt
+    sed -i 's/install(TARGETS zlib zlibstatic/install(TARGETS zlibstatic/g' CMakeLists.txt
+
+    rm -rf build_wasm
     mkdir -p build_wasm
     cd build_wasm
 
-    configure_cmake ..
+    configure_cmake .. -DZLIB_BUILD_EXAMPLES=OFF
     build_and_install
 fi
 
@@ -90,27 +102,38 @@ fi
 
 log_step "3. Building and Installing LibTIFF"
 
-if [ -f "${INSTALL_DIR}/lib/libtiff.a" ]; then
-    echo "LibTIFF static library already found. Skipping build."
+if [ "${FORCE_REBUILD}" != "1" ] && [ -f "${INSTALL_DIR}/lib/libtiff.a" ] && [ -f "${INSTALL_DIR}/include/tiff.h" ]; then
+    echo "LibTIFF library and header already installed. Skipping."
 else
-    TIFF_DIR="${DEPS_SRC_DIR}/tiff-4.0.10"
+    TIFF_VERSION="4.7.0"
+    TIFF_DIR="${DEPS_SRC_DIR}/tiff-${TIFF_VERSION}"
     cd ${DEPS_SRC_DIR}
-    if [ ! -f "tiff-4.0.10.zip" ]; then
-        wget "https://download.osgeo.org/libtiff/tiff-4.0.10.zip"
+
+    if [ ! -f "tiff-${TIFF_VERSION}.tar.gz" ]; then
+        wget -nc "https://download.osgeo.org/libtiff/tiff-${TIFF_VERSION}.tar.gz"
     fi
-    unzip -qo tiff-4.0.10.zip
+    tar -xzf tiff-${TIFF_VERSION}.tar.gz
     cd ${TIFF_DIR}
 
+    rm -rf build_wasm
     mkdir -p build_wasm
     cd build_wasm
 
+    # Configure minimal LibTIFF: No JPEG, No LZMA, No WebP, No ZSTD.
+    # Only Zlib support enabled.
     configure_cmake .. \
-        -D TIFF_BUILD_SHARED=OFF \
-        -D TIFF_BUILD_TOOLS=OFF \
-        -D TIFF_BUILD_TESTS=OFF \
-        -D TIFF_ENABLE_LZMA=OFF \
-        -D ZLIB_INCLUDE_DIR="${INSTALL_DIR}/include" \
-        -D ZLIB_LIBRARY="${INSTALL_DIR}/lib/libz.a"
+        -D tiff-tools=OFF \
+        -D tiff-tests=OFF \
+        -D tiff-contrib=OFF \
+        -D tiff-docs=OFF \
+        -D jpeg=OFF \
+        -D zlib=ON \
+        -D lzma=OFF \
+        -D zstd=OFF \
+        -D webp=OFF \
+        -D jbig=OFF \
+        -D CMAKE_PREFIX_PATH="${INSTALL_DIR}"
+
     build_and_install
 fi
 
@@ -119,7 +142,7 @@ fi
 log_step "4. Building and Installing SQLite3"
 
 # Check if both the library AND the header exist before skipping
-if [ -f "${INSTALL_DIR}/lib/libsqlite3.a" ] && [ -f "${INSTALL_DIR}/include/sqlite3.h" ]; then
+if [ "${FORCE_REBUILD}" != "1" ] && [ -f "${INSTALL_DIR}/lib/libsqlite3.a" ] && [ -f "${INSTALL_DIR}/include/sqlite3.h" ]; then
     echo "SQLite3 static library and header already found. Skipping build."
 else
     SQLITE_VERSION="3440200"
@@ -145,7 +168,6 @@ else
         ${EM_PTHREADS_FLAGS}
 
     # Step 4b: Create the static library archive (.a) from the object file
-    # We use 'emmake ar' which is the Emscripten wrapper for the archiver
     emmake ar rcs ${INSTALL_DIR}/lib/libsqlite3.a ${TEMP_BUILD_DIR}/sqlite3.o
 
     # Copy the header to the install directory
@@ -175,22 +197,26 @@ fi
 cd ${PROJ_SRC_DIR}
 
 # --- 6. Build and Install PROJ ---
-# This step uses the NATIVE sqlite3 binary
+# This step uses the NATIVE sqlite3 binary (from the Docker image)
 # to generate proj.db, which is then embedded into libproj.a.
 
 log_step "6. Building and Installing PROJ"
 
-if [ -f "${INSTALL_DIR}/lib/libproj.a" ]; then
-    echo "PROJ static library already found. Skipping build."
+PROJ_BUILD_WASM_DIR="${PROJ_SRC_DIR}/build_wasm"
+
+if [ "${FORCE_REBUILD}" != "1" ] && [ -f "${INSTALL_DIR}/lib/libproj.a" ]; then
+    echo "PROJ already built. Skipping."
 else
-    PROJ_BUILD_WASM_DIR="${PROJ_SRC_DIR}/build_wasm"
-    # Ensure a clean build directory
-    ### keep for cache ### rm -rf ${PROJ_BUILD_WASM_DIR}
+    # If forcing a rebuild, clean the PROJ build directory too to be safe
+    if [ "${FORCE_REBUILD}" = "1" ]; then
+        echo "Cleaning PROJ build directory due to FORCE_REBUILD..."
+        rm -rf ${PROJ_BUILD_WASM_DIR}
+    fi
+
     mkdir -p ${PROJ_BUILD_WASM_DIR}
     cd ${PROJ_BUILD_WASM_DIR}
 
-    # Configure PROJ, explicitly telling it where to find the dependencies
-    # and specifying the native SQLite3 executable for db generation.
+    # Configure PROJ
     configure_cmake .. \
         -D BUILD_TESTING=OFF \
         -D BUILD_APPS=OFF \
@@ -199,8 +225,6 @@ else
         -D ENABLE_CURL=OFF \
         -D ENABLE_SQLITE=ON \
         -D ENABLE_EMSCRIPTEN_FETCH=ON \
-        -D CMAKE_C_FLAGS="-pthread -matomics -mbulk-memory" \
-        -D CMAKE_CXX_FLAGS="-pthread -matomics -mbulk-memory" \
         -D EXE_SQLITE3=/usr/bin/sqlite3 \
         -D SQLite3_INCLUDE_DIR="${INSTALL_DIR}/include" \
         -D SQLite3_LIBRARY="${INSTALL_DIR}/lib/libsqlite3.a" \
@@ -213,12 +237,14 @@ else
 fi
 
 # --- 6.5 Create C Wrappers ---
+# Helper functions to extract some info from PROJ in C
 log_step "6.5 Creating C Wrapper Functions"
 
-# Create a C file with functions to return the version numbers
-# We must include proj.h from the *install* directory
+WRAPPER_FILE="${TEMP_BUILD_DIR}/proj_wrappers.c"
+WRAPPER_OBJ_FILE="${TEMP_BUILD_DIR}/proj_wrappers.o"
+
 DDD=`date +"%Y-%m-%dT%H:%M:%S%z" -u`
-cat << EOF > ${BUILD_DIR}/proj_wrappers.c
+cat << EOF > ${WRAPPER_FILE}
 #include "proj.h"
 #include "math.h"
 
@@ -232,10 +258,10 @@ int get_proj_info_sizeof() {
 EOF
 
 # Compile the wrapper into an object file
-emcc ${BUILD_DIR}/proj_wrappers.c \
+emcc ${WRAPPER_FILE} \
     -c \
-    -o ${BUILD_DIR}/proj_wrappers.o \
-    -I${INSTALL_DIR}/include \
+    -o ${WRAPPER_OBJ_FILE} \
+    -I ${INSTALL_DIR}/include \
     ${EM_PTHREADS_FLAGS}
 
 # --- 7. Final WASM Module Generation ---
@@ -248,14 +274,7 @@ FINAL_LIBS="${INSTALL_DIR}/lib/libproj.a \
             ${INSTALL_DIR}/lib/libsqlite3.a \
             ${INSTALL_DIR}/lib/libtiff.a \
             ${INSTALL_DIR}/lib/libz.a \
-            ${BUILD_DIR}/proj_wrappers.o"
-
-# Note: We no longer need --preload-file for proj.db
-# It is now embedded directly in libproj.a by the build process in Step 6.
-
-    #-O0 -g \
-    #-O3 \
-    #-s PTHREAD_POOL_SIZE=2 \
+            ${WRAPPER_OBJ_FILE}"
 
 emcc ${FINAL_LIBS} \
     -o ${INSTALL_DIR}/projModule.js \
