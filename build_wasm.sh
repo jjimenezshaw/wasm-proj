@@ -52,6 +52,7 @@ log_step "1. Setting up Environment and Directories"
 
 if [ "${FORCE_REBUILD}" = "1" ]; then
     echo "!!! FORCE_REBUILD is set. Existing libraries will be ignored and rebuilt. !!!"
+    rm -rf "${INSTALL_DIR}"/*
 fi
 
 # Clean build directories to ensure a fresh build
@@ -59,9 +60,6 @@ rm -rf ${TEMP_BUILD_DIR}
 # We keep DEPS_SRC_DIR to cache downloads
 mkdir -p ${TEMP_BUILD_DIR}
 mkdir -p ${DEPS_SRC_DIR}
-
-# Source the Emscripten environment script in the current shell
-source "${EMSDK_PATH}/emsdk_env.sh" > /dev/null
 
 echo "PROJ Version/Branch: ${PROJ_BRANCH}"
 echo "Installation target: ${INSTALL_DIR}"
@@ -96,6 +94,12 @@ else
 
     configure_cmake .. -DZLIB_BUILD_EXAMPLES=OFF
     build_and_install
+
+    # Handle case where Zlib installs as libzlibstatic.a instead of libz.a
+    if [ -f "${INSTALL_DIR}/lib/libzlibstatic.a" ]; then
+        echo "Detected libzlibstatic.a, copying to libz.a..."
+        cp "${INSTALL_DIR}/lib/libzlibstatic.a" "${INSTALL_DIR}/lib/libz.a"
+    fi
 fi
 
 # --- 3. Build and Install LibTIFF (Dependency) ---
@@ -305,20 +309,6 @@ emcc ${FINAL_LIBS} \
      '_proj_context_destroy',
      '_proj_destroy', '_proj_trans', '_proj_trans_array', '_malloc', '_free']" \
     ${EM_PTHREADS_FLAGS}
-
-# --- 8. Set File Permissions ---
-log_step "8. Setting file ownership"
-
-# Get the user and group ID from the mounted install directory (the host)
-HOST_UID=$(stat -c %u ${INSTALL_DIR})
-HOST_GID=$(stat -c %g ${INSTALL_DIR})
-
-if [ "$HOST_UID" -ne 0 ] || [ "$HOST_GID" -ne 0 ]; then
-    echo "Changing ownership of ${INSTALL_DIR} to ${HOST_UID}:${HOST_GID}"
-    chown -R ${HOST_UID}:${HOST_GID} ${INSTALL_DIR}
-else
-    echo "Running as root, no ownership change needed."
-fi
 
 log_step "BUILD SUCCESSFUL!"
 echo "Artifacts are installed in ${INSTALL_DIR}"
