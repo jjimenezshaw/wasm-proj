@@ -4,9 +4,8 @@ set -e
 
 # --- Configuration Variables ---
 # Use environment variables from Dockerfile or runtime.
-PROJ_VERSION=${PROJ_VERSION:-9.7.0}
 PROJ_REPO=${PROJ_REPO:-https://github.com/OSGeo/PROJ.git}
-PROJ_BRANCH=${PROJ_BRANCH:-${PROJ_VERSION}} # If PROJ_BRANCH is not set, use PROJ_VERSION
+
 EMSDK_PATH=${EMSDK_PATH:-/emsdk}
 BUILD_DIR=${BUILD_DIR:-/build}
 INSTALL_DIR=${INSTALL_DIR:-/usr/local/wasm}
@@ -61,7 +60,15 @@ rm -rf ${TEMP_BUILD_DIR}
 mkdir -p ${TEMP_BUILD_DIR}
 mkdir -p ${DEPS_SRC_DIR}
 
-echo "PROJ Version/Branch: ${PROJ_BRANCH}"
+if [ -f "${PROJ_SRC_DIR}/CMakeLists.txt" ]; then
+    echo "Using content from ${PROJ_SRC_DIR} to build PROJ"
+elif [ -n "${PROJ_TAG}" ]; then
+    echo "Using PROJ from ${PROJ_REPO} : ${PROJ_TAG}"
+else
+    echo "Please set PROJ_TAG env variable, or populate ${PROJ_SRC_DIR}"
+    exit 1
+fi
+
 echo "Installation target: ${INSTALL_DIR}"
 
 # --- 2. Build and Install Zlib (Dependency) ---
@@ -182,20 +189,12 @@ else
 fi
 
 
-# --- 5. Download PROJ Source ---
+# --- 5. Download PROJ Source if needed ---
 
 log_step "5. Downloading PROJ Source"
 
-echo "Checking ${PROJ_SRC_DIR}"
-if [ ! -d "${PROJ_SRC_DIR}/.git" ]; then
-    if [ -d "${PROJ_SRC_DIR}" ] && [ "$(ls -A ${PROJ_SRC_DIR})" ]; then
-        echo "Local PROJ source found at ${PROJ_SRC_DIR}. Skipping clone."
-    else
-        echo "Cloning PROJ repository: ${PROJ_REPO}"
-        git clone --depth 1 --branch ${PROJ_BRANCH} ${PROJ_REPO} ${PROJ_SRC_DIR}
-    fi
-else
-    echo "PROJ source directory already exists. Skipping clone."
+if [ ! -f "${PROJ_SRC_DIR}/CMakeLists.txt" ]; then
+    git clone --depth 1 --branch ${PROJ_TAG} ${PROJ_REPO} ${PROJ_SRC_DIR}
 fi
 
 cd ${PROJ_SRC_DIR}
@@ -224,18 +223,14 @@ else
     configure_cmake .. \
         -D BUILD_TESTING=OFF \
         -D BUILD_APPS=OFF \
-        -D PROJ_TESTS_EXTERNAL_DATA=OFF \
         -D ENABLE_TIFF=ON \
         -D ENABLE_CURL=OFF \
-        -D ENABLE_SQLITE=ON \
         -D ENABLE_EMSCRIPTEN_FETCH=ON \
         -D EXE_SQLITE3=/usr/bin/sqlite3 \
         -D SQLite3_INCLUDE_DIR="${INSTALL_DIR}/include" \
         -D SQLite3_LIBRARY="${INSTALL_DIR}/lib/libsqlite3.a" \
         -D TIFF_INCLUDE_DIR="${INSTALL_DIR}/include" \
-        -D TIFF_LIBRARY="${INSTALL_DIR}/lib/libtiff.a" \
-        -D ZLIB_INCLUDE_DIR="${INSTALL_DIR}/include" \
-        -D ZLIB_LIBRARY="${INSTALL_DIR}/lib/libz.a"
+        -D TIFF_LIBRARY_RELEASE="${INSTALL_DIR}/lib/libtiff.a"
 
     build_and_install
 fi
@@ -244,7 +239,7 @@ fi
 # Helper functions to extract some info from PROJ in C
 log_step "6.5 Creating C Wrapper Functions"
 
-WRAPPER_FILE="${TEMP_BUILD_DIR}/proj_wrappers.c"
+WRAPPER_FILE="${TEMP_BUILD_DIR}/proj_wrappers.cpp"
 WRAPPER_OBJ_FILE="${TEMP_BUILD_DIR}/proj_wrappers.o"
 
 DDD=`date +"%Y-%m-%dT%H:%M:%S%z" -u`
@@ -252,12 +247,61 @@ cat << EOF > ${WRAPPER_FILE}
 #include "proj.h"
 #include "math.h"
 
+#include "projapps_lib.h"
+
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
+#include <vector>
+#include <string>
+
+//using namespace emscripten;
+
+void trampoline(PROJInfoLogLevel level, const char *msg, void *user_data) {
+    if (!user_data) return;
+    const emscripten::val* js_callback = reinterpret_cast<const emscripten::val*>(user_data);
+    (*js_callback)(level, std::string(msg));
+}
+
+int projinfo_wrapper(uintptr_t ctx_ptr, emscripten::val jsArgs, emscripten::val jsCallback) {
+    std::vector<std::string> args = emscripten::vecFromJSArray<std::string>(jsArgs);
+    std::vector<char*> argv;
+    for (auto& s : args) {
+        argv.push_back(&s[0]);
+    }
+    PJ_CONTEXT *ctx = reinterpret_cast<PJ_CONTEXT *>(ctx_ptr);
+    return projinfo(ctx, args.size(), argv.data(), &trampoline, &jsCallback);
+}
+
+EMSCRIPTEN_BINDINGS(proj_module) {
+    emscripten::value_object<PJ_INFO>("PJ_INFO")
+        .field("major", &PJ_INFO::major)
+        .field("minor", &PJ_INFO::minor)
+        .field("patch", &PJ_INFO::patch)
+        .field("release", std::function<std::string(const PJ_INFO&)>([](const PJ_INFO& i) {
+                return std::string(i.release); }),
+            std::function<void(PJ_INFO&, std::string)>([](PJ_INFO& i, std::string v) {}))
+        .field("version", std::function<std::string(const PJ_INFO&)>([](const PJ_INFO& i) {
+                return std::string(i.version); }),
+            std::function<void(PJ_INFO&, std::string)>([](PJ_INFO& i, std::string v) {}));
+    emscripten::function("proj_info", &proj_info);
+
+    emscripten::enum_<PROJInfoLogLevel>("PROJInfoLogLevel")
+        .value("INFO", PROJInfoLogLevel_INFO)
+        .value("WARN", PROJInfoLogLevel_WARN)
+        .value("ERR", PROJInfoLogLevel_ERR);
+
+    emscripten::function("projinfo_ems", &projinfo_wrapper, emscripten::allow_raw_pointers());
+}
+
+extern "C" {
+
 const char* get_compilation_date() {
     return "$DDD" ;
 }
 
 int get_proj_info_sizeof() {
     return sizeof(PJ_INFO);
+}
 }
 EOF
 
@@ -280,35 +324,33 @@ FINAL_LIBS="${INSTALL_DIR}/lib/libproj.a \
             ${INSTALL_DIR}/lib/libz.a \
             ${WRAPPER_OBJ_FILE}"
 
-emcc ${FINAL_LIBS} \
+# include all exported symbols
+echo -e "_malloc\n_free\n_get_compilation_date\n_get_proj_info_sizeof" > ${INSTALL_DIR}/exported_symbols.txt
+grep "^proj_\|^geod_" ${PROJ_SRC_DIR}/scripts/reference_exported_symbols.txt | grep -v "(" | sed 's/^/_/' >> ${INSTALL_DIR}/exported_symbols.txt
+head ${INSTALL_DIR}/exported_symbols.txt
+
+emcc -v ${FINAL_LIBS} \
     -o ${INSTALL_DIR}/projModule.js \
     -O3 \
-    -s STACK_OVERFLOW_CHECK=2 \
+    -lembind \
+    -s STACK_OVERFLOW_CHECK=1 \
     -s STACK_SIZE=5MB \
-    -s ASSERTIONS \
     -s NO_DISABLE_EXCEPTION_CATCHING \
     -s FETCH=1 \
     -s USE_PTHREADS=1 \
     -s FETCH_SUPPORT_INDEXEDDB=0 \
-    -s ASYNCIFY=1 \
-    -s ASYNCIFY_STACK_SIZE=16384 \
     -s WASM=1 \
     -s MODULARIZE=1 \
     -s EXPORT_NAME="'ProjModuleFactory'" \
     -s FORCE_FILESYSTEM=1 \
     -s ALLOW_MEMORY_GROWTH=1 \
-    -s EXPORTED_RUNTIME_METHODS="['ccall','cwrap','FS','HEAPF64','stringToNewUTF8','UTF8ToString','getValue']" \
-    -s EXPORTED_FUNCTIONS="[
-     '_get_proj_info_sizeof',
-     '_get_compilation_date',
-     '_proj_info',
-     '_proj_context_errno_string',
-     '_proj_context_create', '_proj_context_set_enable_network',
-     '_proj_create', '_proj_create_from_database',
-     '_proj_create_crs_to_crs', '_proj_create_crs_to_crs_from_pj',
-     '_proj_context_destroy',
-     '_proj_destroy', '_proj_trans', '_proj_trans_array', '_malloc', '_free']" \
+    -s EXPORTED_RUNTIME_METHODS="[ccall, cwrap, FS, HEAPF64, stringToNewUTF8, UTF8ToString, getValue]" \
+    -s EXPORTED_FUNCTIONS=@${INSTALL_DIR}/exported_symbols.txt \
     ${EM_PTHREADS_FLAGS}
 
 log_step "BUILD SUCCESSFUL!"
+
+echo "ls -l ${INSTALL_DIR}"
+ls -l ${INSTALL_DIR}
+
 echo "Artifacts are installed in ${INSTALL_DIR}"

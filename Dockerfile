@@ -1,6 +1,8 @@
 # Use the official Emscripten SDK image.
 FROM emscripten/emsdk:4.0.5
 
+# Set non-interactive frontend for package installations
+ENV DEBIAN_FRONTEND="noninteractive"
 
 # --- Install System Dependencies ---
 RUN apt-get update && \
@@ -14,7 +16,6 @@ RUN apt-get update && \
 # Define standard locations for building and installing
 ENV BUILD_DIR="/build"
 ENV INSTALL_DIR="/usr/local/wasm"
-ENV PROJ_VERSION="9.7.0"
 
 # Create the directories
 RUN mkdir -p ${BUILD_DIR}/proj_src \

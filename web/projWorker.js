@@ -44,7 +44,9 @@ function get_proj_info(data) {
             version: versionPtr ? proj.UTF8ToString(versionPtr) : "",
             compilation_date: date,
         };
-        postMessage({type: type, info: info});
+        let r = proj.proj_info();
+        r.compilation_date = proj.UTF8ToString(proj._get_compilation_date());
+        postMessage({type: type, info: r});
         return info;
     } finally {
         // 4. Always free the memory you allocated!
@@ -144,6 +146,16 @@ function computeTransform(data) {
     }
 }
 
+let msg = "";
+const myCallback = (level, message) => {
+        // 'level' is an integer (1, 2, or 3) or the Enum object depending on usage
+        if (level.value === proj.PROJInfoLogLevel.ERR.value) {
+            console.error(`[PROJ ERROR] ${message}`);
+        } else {
+            //console.log(`[PROJ LOG ${level}] ${message}`);
+            msg += message;
+        }
+    };
 
 importScripts("projModule.js");
 if (typeof ProjModuleFactory === 'undefined') {
@@ -152,6 +164,13 @@ if (typeof ProjModuleFactory === 'undefined') {
     ProjModuleFactory().then(module => {
         proj = module;
         console.log("loaded module");
+
+        const args = ["EPSG:4258", "-o", "WKT1_GDAL"];
+        ctx = proj._proj_context_create();
+        let r = proj.projinfo_ems(ctx, args, myCallback);
+        console.log(r);
+        console.log(msg);
+
         postMessage({type: "loaded", loaded: true});
     }).catch(err => {
         console.error(`Failed to instantiate Wasm module: ${err}`);
