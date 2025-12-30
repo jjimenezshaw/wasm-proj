@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJ Wasm projinfo Test</title>
+
+    <!--
+      Load the Cross-Origin Isolation service worker.
+      This file (coi-serviceworker.js) must be in the same directory.
+      It sets the required COOP/COEP headers to enable SharedArrayBuffer (for Pthreads).
+    -->
+    <!--script src="coi-serviceworker.js"></script-->
+
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f4; }
+        h1 { color: #333; }
+        #output {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 1em;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .projinfo-input { width: 90%; }
+        .status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+        .hidden {display: none;}
+
+        .info { color: black; }
+        .warn { color: darkorange; }
+        .err { color: red; }
+    </style>
+</head>
+<body>
+    <h1>PROJ WebAssembly projinfo Test</h1>
+    <p id="loading">Loading module... &#8987;</p>
+    <div>
+        <label for="args">args: </label><input type="text" id="args" name="args" required class="projinfo-input" placeholder="EPSG:4258"/>
+    </div>
+
+    <input type="button" value="Compute" id="compute" disabled/>
+    <input type="button" value="Clean" id="clean"/> <span id="waiting" class="hidden">&#8987;</span>
+    <div id="output"></div>
+
+    <script>
+        let last_now = performance.now();
+        let projWorker = null;
+
+        const outputEl = document.getElementById('output');
+
+        function log(message, type = 'log') {
+            const statusClass = type === 'success' ? 'success' : (type === 'error' ? 'error' : '');
+            outputEl.innerHTML += `<div class="${statusClass}">${message}</div>`;
+            const t = type === 'success' ? 'info' : type;
+            console[t](message);
+        }
+
+        function msg_log(message, type = 'log') {
+            const statusClass = ['info', 'warn', 'err'].includes(type) ? type : '';
+            outputEl.innerHTML += `<span class="${statusClass}">${message}</span>`;
+        }
+
+        function compute() {
+            let args = document.getElementById("args").value;
+            let args_list = args.match(/(?:[^\s"']+|['"][^'"]*["'])+/g)
+            document.getElementById("waiting").classList.remove("hidden");
+            last_now = performance.now();
+            projWorker.postMessage({
+                type: "projinfo",
+                args: args_list,
+            });
+        }
+
+        window.onload = function() {
+            // Load proj web worker. It cannot run in the main thread
+            // because it may do synchronous fetch calls.
+            projWorker = new Worker("projWorker.js");
+            projWorker.onmessage = (e) => {
+                document.getElementById("waiting").classList.add("hidden");
+
+                if (e.data.loaded) {
+                    document.getElementById("compute").disabled = false;
+                    document.getElementById("loading").classList.add("hidden");
+                    projWorker.postMessage({type: "info"});
+                    const now = performance.now();
+                    console.log(`module loaded in ${Math.round(now - last_now)} ms`);
+                } else if (e.data.type == "info") {
+                    const info = e.data.info;
+                    log(`PROJ Version: ${info.version}`, 'success');
+                    log(`Wasm compilation date: ${info.compilation_date}`, 'success');
+                } else if (e.data.type == "transform" && e.data.res) {
+                    const now = performance.now();
+                    console.log(`transform computed in ${Math.round(now - last_now)} ms`);
+                    let [x, y, z] = e.data.res;
+                    log(`Transformed: x=${x}, y=${y}, z=${z}`, 'success');
+                } else if (e.data.type == "projinfo" && e.data.msgs) {
+                    const level = ['', 'info', 'warn', 'err'];
+                    for (let msg of e.data.msgs) {
+                        msg_log(msg.msg, level[msg.level]);
+                    }
+                    log('\n--------------------------------\n\n', 'success')
+                } else if (e.data.error) {
+                    log(e.data.error, 'error');
+                } else {
+                    log(`Unexpected error: ${e.data}`, 'error');
+                }
+                //console.log(`Message received from worker: ${e.data}`);
+            };
+
+            projWorker.onerror = (error) => {
+                document.getElementById("waiting").classList.add("hidden");
+                log(error.message, 'error');
+                console.log(`Worker error: ${error.message}`);
+                throw error;
+            };
+        };
+        document.getElementById("compute").addEventListener("click", compute);
+        document.getElementById("clean").addEventListener("click", () => document.getElementById("output").innerHTML="");
+    </script>
+</body>
+</html>
