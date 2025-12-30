@@ -3,8 +3,11 @@ onmessage = (e) => {
         computeTransform(e.data);
     } else if(e.data.type == "info") {
         get_proj_info(e.data);
+    } else if(e.data.type == "projinfo") {
+        get_projinfo(e.data);
+    } else {
+        throw new Error("unknown message on worker");
     }
-
 };
 
 let proj = null; // PROJ module from wasm
@@ -12,46 +15,28 @@ let ctx = null;
 
 function get_proj_info(data) {
     const type = "info";
-    let proj_info_size = proj._get_proj_info_sizeof();
-    if (proj_info_size > 64)
-        throw new Error(`Unexpected size of PJ_INFO: ${proj_info_size}`);
-    // 1. Allocate memory for the struct (allocating 64 bytes to be safe)
-    const structPtr = proj._malloc(64);
+    let r = proj.proj_info_ems();
+    r.compilation_date = proj.UTF8ToString(proj._get_compilation_date());
+    postMessage({type: type, input: data, info: r});
+}
 
-    try {
-        // Because proj_info returns a struct by value, 
-        // Emscripten generates a function signature that takes the 
-        // destination pointer as the FIRST argument.
-        proj._proj_info(structPtr);
+function get_projinfo(data) {
+    let msgs = [];
+    const myCallback = (level, message) => {
+        let lastElement = msgs.slice(-1);
+        if (!lastElement.length || level.value != lastElement[0].level) {
+            msgs.push({level: level.value, msg: ""});
+            lastElement = msgs.slice(-1);
+        }
+        lastElement[0].msg += message;
+    };
 
-        // 3. Read the fields using offsets
-        const major = proj.getValue(structPtr, 'i32');
-        const minor = proj.getValue(structPtr + 4, 'i32');
-        const patch = proj.getValue(structPtr + 8, 'i32');
-
-        // Read the string pointers
-        const releasePtr = proj.getValue(structPtr + 12, 'i32');
-        const versionPtr = proj.getValue(structPtr + 16, 'i32');
-        const date = proj.UTF8ToString(proj._get_compilation_date());
-
-        // Convert pointers to JS strings
-        // Check for 0 (NULL) before converting to avoid crashes
-        const info = {
-            major: major,
-            minor: minor,
-            patch: patch,
-            release: releasePtr ? proj.UTF8ToString(releasePtr) : "",
-            version: versionPtr ? proj.UTF8ToString(versionPtr) : "",
-            compilation_date: date,
-        };
-        let r = proj.proj_info();
-        r.compilation_date = proj.UTF8ToString(proj._get_compilation_date());
-        postMessage({type: type, info: r});
-        return info;
-    } finally {
-        // 4. Always free the memory you allocated!
-        proj._free(structPtr);
-    }
+    const type = "projinfo";
+    const args = data.args ?? [];
+    ctx = ctx ?? proj._proj_context_create();
+    let rc = proj.projinfo_ems(ctx, args, myCallback);
+    console.log(msgs);
+    postMessage({type: type, input: data, msgs: msgs});
 }
 
 function computeTransform(data) {
@@ -146,17 +131,6 @@ function computeTransform(data) {
     }
 }
 
-let msg = "";
-const myCallback = (level, message) => {
-        // 'level' is an integer (1, 2, or 3) or the Enum object depending on usage
-        if (level.value === proj.PROJInfoLogLevel.ERR.value) {
-            console.error(`[PROJ ERROR] ${message}`);
-        } else {
-            //console.log(`[PROJ LOG ${level}] ${message}`);
-            msg += message;
-        }
-    };
-
 importScripts("projModule.js");
 if (typeof ProjModuleFactory === 'undefined') {
     console.error("'ProjModuleFactory' is not defined. Have you loaded projModule.js.");
@@ -165,11 +139,7 @@ if (typeof ProjModuleFactory === 'undefined') {
         proj = module;
         console.log("loaded module");
 
-        const args = ["EPSG:4258", "-o", "WKT1_GDAL"];
-        ctx = proj._proj_context_create();
-        let r = proj.projinfo_ems(ctx, args, myCallback);
-        console.log(r);
-        console.log(msg);
+
 
         postMessage({type: "loaded", loaded: true});
     }).catch(err => {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROJ Wasm Pthreads Test</title>
+    <title>PROJ Wasm projinfo Test</title>
 
     <!--
       Load the Cross-Origin Isolation service worker.
@@ -24,27 +24,24 @@
             border-radius: 5px;
             min-height: 100px;
         }
+        .projinfo-input { width: 90%; }
         .status { font-weight: bold; }
         .success { color: green; }
         .error { color: red; }
         .hidden {display: none;}
+
+        .info { color: black; }
+        .warn { color: darkorange; }
+        .err { color: red; }
     </style>
 </head>
 <body>
-    <h1>PROJ WebAssembly Pthreads Test</h1>
+    <h1>PROJ WebAssembly projinfo Test</h1>
     <p id="loading">Loading module... &#8987;</p>
     <div>
-        <label for="src">src: </label><input type="text" id="src" name="src" required size="15" placeholder="EPSG:4258" value="EPSG:4258"/>
-        <label for="dst">dst: </label><input type="text" id="dst" name="dst" required size="15" placeholder="EPSG:5677" value="EPSG:5677"/>
+        <label for="args">args: </label><input type="text" id="args" name="args" required class="projinfo-input" placeholder="EPSG:4258"/>
     </div>
-    <div>
-        <label for="network">use network:</label><input type="checkbox" id="network" name="network" checked/>
-    </div>
-    <div>
-        <label for="x">x: </label><input type="text" id="x" name="x" required size="10" placeholder="54.8" value="54.8"/>
-        <label for="y">y: </label><input type="text" id="y" name="y" required size="10" placeholder="9.0" value="9.0"/>
-        <label for="z">z: </label><input type="text" id="z" name="z" required size="10" placeholder="0.0" value="0.0"/>
-    </div>
+
     <input type="button" value="Compute" id="compute" disabled/>
     <input type="button" value="Clean" id="clean"/> <span id="waiting" class="hidden">&#8987;</span>
     <div id="output"></div>
@@ -62,21 +59,19 @@
             console[t](message);
         }
 
-        function sendTransform() {
-            let use_network = document.getElementById("network").checked;
-            let src = document.getElementById("src").value;
-            let dst = document.getElementById("dst").value;
-            let x = parseFloat(document.getElementById("x").value);
-            let y = parseFloat(document.getElementById("y").value);
-            let z = parseFloat(document.getElementById("z").value);
+        function msg_log(message, type = 'log') {
+            const statusClass = ['info', 'warn', 'err'].includes(type) ? type : '';
+            outputEl.innerHTML += `<span class="${statusClass}">${message}</span>`;
+        }
+
+        function compute() {
+            let args = document.getElementById("args").value;
+            let args_list = args.match(/(?:[^\s"']+|['"][^'"]*["'])+/g)
             document.getElementById("waiting").classList.remove("hidden");
             last_now = performance.now();
             projWorker.postMessage({
-                type: "transform",
-                use_network: use_network,
-                src: src,
-                dst: dst,
-                coord: [x,y,z],
+                type: "projinfo",
+                args: args_list,
             });
         }
 
@@ -102,6 +97,12 @@
                     console.log(`transform computed in ${Math.round(now - last_now)} ms`);
                     let [x, y, z] = e.data.res;
                     log(`Transformed: x=${x}, y=${y}, z=${z}`, 'success');
+                } else if (e.data.type == "projinfo" && e.data.msgs) {
+                    const level = ['', 'info', 'warn', 'err'];
+                    for (let msg of e.data.msgs) {
+                        msg_log(msg.msg, level[msg.level]);
+                    }
+                    log('\n--------------------------------\n\n', 'success')
                 } else if (e.data.error) {
                     log(e.data.error, 'error');
                 } else {
@@ -117,7 +118,7 @@
                 throw error;
             };
         };
-        document.getElementById("compute").addEventListener("click", sendTransform);
+        document.getElementById("compute").addEventListener("click", compute);
         document.getElementById("clean").addEventListener("click", () => document.getElementById("output").innerHTML="");
     </script>
 </body>

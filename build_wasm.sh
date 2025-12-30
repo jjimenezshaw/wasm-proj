@@ -283,7 +283,7 @@ EMSCRIPTEN_BINDINGS(proj_module) {
         .field("version", std::function<std::string(const PJ_INFO&)>([](const PJ_INFO& i) {
                 return std::string(i.version); }),
             std::function<void(PJ_INFO&, std::string)>([](PJ_INFO& i, std::string v) {}));
-    emscripten::function("proj_info", &proj_info);
+    emscripten::function("proj_info_esm", &proj_info);
 
     emscripten::enum_<PROJInfoLogLevel>("PROJInfoLogLevel")
         .value("INFO", PROJInfoLogLevel_INFO)
@@ -297,10 +297,6 @@ extern "C" {
 
 const char* get_compilation_date() {
     return "$DDD" ;
-}
-
-int get_proj_info_sizeof() {
-    return sizeof(PJ_INFO);
 }
 }
 EOF
