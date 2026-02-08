@@ -236,7 +236,7 @@ else
 fi
 
 # --- 6.5 Create C Wrappers ---
-# Helper functions to extract some info from PROJ in C
+# Helper functions to extract some info from PROJ in C and C++
 log_step "6.5 Creating C Wrapper Functions"
 
 WRAPPER_FILE="${TEMP_BUILD_DIR}/proj_wrappers.cpp"
@@ -254,9 +254,7 @@ cat << EOF > ${WRAPPER_FILE}
 #include <vector>
 #include <string>
 
-//using namespace emscripten;
-
-void trampoline(PROJInfoLogLevel level, const char *msg, void *user_data) {
+void trampoline(PJ_PROJINFO_LOG_LEVEL level, const char *msg, void *user_data) {
     if (!user_data) return;
     const emscripten::val* js_callback = reinterpret_cast<const emscripten::val*>(user_data);
     (*js_callback)(level, std::string(msg));
@@ -283,12 +281,12 @@ EMSCRIPTEN_BINDINGS(proj_module) {
         .field("version", std::function<std::string(const PJ_INFO&)>([](const PJ_INFO& i) {
                 return std::string(i.version); }),
             std::function<void(PJ_INFO&, std::string)>([](PJ_INFO& i, std::string v) {}));
-    emscripten::function("proj_info_esm", &proj_info);
+    emscripten::function("proj_info_ems", &proj_info);
 
-    emscripten::enum_<PROJInfoLogLevel>("PROJInfoLogLevel")
-        .value("INFO", PROJInfoLogLevel_INFO)
-        .value("WARN", PROJInfoLogLevel_WARN)
-        .value("ERR", PROJInfoLogLevel_ERR);
+    emscripten::enum_<PJ_PROJINFO_LOG_LEVEL>("PJ_PROJINFO_LOG_LEVEL")
+        .value("INFO", PJ_PROJINFO_LOG_LEVEL_INFO)
+        .value("WARN", PJ_PROJINFO_LOG_LEVEL_WARN)
+        .value("ERR", PJ_PROJINFO_LOG_LEVEL_ERR);
 
     emscripten::function("projinfo_ems", &projinfo_wrapper, emscripten::allow_raw_pointers());
 }
@@ -321,7 +319,7 @@ FINAL_LIBS="${INSTALL_DIR}/lib/libproj.a \
             ${WRAPPER_OBJ_FILE}"
 
 # include all exported symbols
-echo -e "_malloc\n_free\n_get_compilation_date\n_get_proj_info_sizeof" > ${INSTALL_DIR}/exported_symbols.txt
+echo -e "_malloc\n_free\n_get_compilation_date" > ${INSTALL_DIR}/exported_symbols.txt
 grep "^proj_\|^geod_" ${PROJ_SRC_DIR}/scripts/reference_exported_symbols.txt | grep -v "(" | sed 's/^/_/' >> ${INSTALL_DIR}/exported_symbols.txt
 head ${INSTALL_DIR}/exported_symbols.txt
 
