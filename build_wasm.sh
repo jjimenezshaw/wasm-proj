@@ -16,6 +16,7 @@ TEMP_BUILD_DIR="${BUILD_DIR}/temp_build"
 # Emscripten flags for Pthreads (multithreading support for synchronous emscripten_fetch)
 # and some other.
 EM_PTHREADS_FLAGS="-pthread -matomics -mbulk-memory -fexceptions"
+# if we are able to compile in WASM64, add -sMEMORY64=1
 
 # --- Utility Functions ---
 
@@ -296,6 +297,10 @@ extern "C" {
 const char* get_compilation_date() {
     return "$DDD" ;
 }
+
+int get_ptr_size() {
+    return sizeof(void*);
+}
 }
 EOF
 
@@ -319,9 +324,11 @@ FINAL_LIBS="${INSTALL_DIR}/lib/libproj.a \
             ${WRAPPER_OBJ_FILE}"
 
 # include all exported symbols
-echo -e "_malloc\n_free\n_get_compilation_date" > ${INSTALL_DIR}/exported_symbols.txt
+echo -e "_malloc\n_free\n_get_compilation_date\n_get_ptr_size" > ${INSTALL_DIR}/exported_symbols.txt
 grep "^proj_\|^geod_" ${PROJ_SRC_DIR}/scripts/reference_exported_symbols.txt | grep -v "(" | sed 's/^/_/' >> ${INSTALL_DIR}/exported_symbols.txt
 head ${INSTALL_DIR}/exported_symbols.txt
+
+#    -O0 -g -s ASSERTIONS=2 \
 
 emcc -v ${FINAL_LIBS} \
     -o ${INSTALL_DIR}/projModule.js \
@@ -338,7 +345,7 @@ emcc -v ${FINAL_LIBS} \
     -s EXPORT_NAME="'ProjModuleFactory'" \
     -s FORCE_FILESYSTEM=1 \
     -s ALLOW_MEMORY_GROWTH=1 \
-    -s EXPORTED_RUNTIME_METHODS="[ccall, cwrap, FS, HEAPF64, stringToNewUTF8, UTF8ToString, getValue]" \
+    -s EXPORTED_RUNTIME_METHODS="[ccall, cwrap, FS, HEAP8, HEAP16, HEAP32, HEAPF64, lengthBytesUTF8, stringToUTF8, stringToNewUTF8, UTF8ToString, getValue, setValue]" \
     -s EXPORTED_FUNCTIONS=@${INSTALL_DIR}/exported_symbols.txt \
     ${EM_PTHREADS_FLAGS}
 

@@ -1,0 +1,429 @@
+"use strict"
+
+// Small class to help to manage memory.
+class Keeper {
+    constructor(proj, debug = false) {
+        if (!proj) {
+            throw new Error("proj cannot be empty in class Keeper");
+        }
+
+        this.proj = proj;
+        this.debug = debug;
+        this.to_free = [];
+        this.to_destroy = [];
+        this.special_destroy = [];
+    };
+
+    add(ptr, proj_destroy = true) {
+        if (proj_destroy) {
+            if (this.debug)
+                console.debug("add destroy", ptr);
+            this.to_destroy.push(ptr);
+        } else {
+            if (this.debug)
+                console.debug("add free", ptr);
+            this.to_free.push(ptr);
+        }
+        return ptr;
+    };
+
+    call(name, ...args) {
+        const ptr = this.proj[name](...args);
+        return this.add(ptr, true);
+    }
+
+    call_destroyer(name, destroyer, ...args) {
+        const ptr = this.proj[name](...args);
+        if (this.debug)
+            console.debug("add special destroyer", ptr, destroyer);
+        this.special_destroy.push([destroyer, ptr]);
+        return ptr;
+    }
+
+    malloc(ptrSize) {
+        const ptr = this.proj._malloc(ptrSize);
+        return this.add(ptr, false);
+    };
+
+    string(str) {
+        const ptr = this.proj.stringToNewUTF8(str);
+        return this.add(ptr, false);
+    };
+
+    destroy() {
+        this.special_destroy.reverse();
+        for (const p of this.special_destroy) {
+            const [destroyer, ptr] = p;
+            if (this.debug)
+                console.debug("call specal destroyer", ptr, destroyer);
+            this.proj[destroyer](ptr);
+        }
+        this.special_destroy = [];
+
+        this.to_destroy.reverse();
+        for (const p of this.to_destroy) {
+            if (this.debug)
+                console.debug("call destroy", p);
+            this.proj._proj_destroy(p);
+        }
+        this.to_destroy = [];
+
+        this.to_free.reverse();
+        for (const p of this.to_free) {
+            if (this.debug)
+                console.debug("call free", p);
+            this.proj._free(p);
+        }
+        this.to_free = [];
+    };
+};
+
+function struct_ptr_to_dict(proj, struct_ptr, params) {
+    /// params is [[name, type]]
+    /// where type can be
+    ///   string, i32, double
+    /// if name = __ , it is ignored. Needed to count the offset
+    let offset = 0;
+    const dummy = "__";
+    const res = {}
+    for (const p of params) {
+        const [name, type] = p;
+        let v;
+        switch (type) {
+            case ("string"):
+                v = proj.getValue(struct_ptr + offset, '*');
+                offset += 4;
+                res[name] = proj.UTF8ToString(v);
+                break;
+            case ("b32"):
+                v = proj.getValue(struct_ptr + offset, 'i32');
+                offset += 4;
+                res[name] = !!v;
+                break;
+            case ("i32"):
+                v = proj.getValue(struct_ptr + offset, 'i32');
+                offset += 4;
+                res[name] = v;
+                break;
+            case ("double"):
+                v = proj.getValue(struct_ptr + offset, 'double');
+                offset += 8;
+                res[name] = v;
+                break;
+            default:
+                throw new Error(`Unknown type [${type}] in struct_ptr_to_dict`)
+        }
+    }
+    delete res[dummy];
+    return res;
+}
+
+class Transformer {
+    constructor(proj, ctx, P) {
+        this.proj = proj;
+        this.ctx = ctx;
+        this.P = P;
+    }
+
+    destroy() {
+        this.proj._proj_destroy(this.P);
+        this.P = undefined;
+        this.ctx = undefined;
+        this.proj = undefined;
+    }
+
+    transform(args) {
+        const keep = new Keeper(this.proj);
+        try {
+            const points = args.points;
+            const number_of_points = points.length;
+            const inverse = args.inverse;
+
+            let coordPtr = keep.malloc(32 * number_of_points);
+            const coordView = new Float64Array(this.proj.HEAPF64.buffer, coordPtr, 4 * number_of_points);
+            for (let p = 0; p < number_of_points; p++) {
+                coordView[p * 4 + 0] = points[p][0];
+                coordView[p * 4 + 1] = points[p][1];
+                coordView[p * 4 + 2] = points[p].length > 2 ? points[p][2] : 0;
+                coordView[p * 4 + 3] = points[p].length > 3 ? points[p][3] : Infinity; // HUGE_VAL
+            }
+
+            const r = this.proj._proj_trans_array(this.P, inverse ? -1 : 1, number_of_points, coordPtr);
+            if (r != 0) {
+                const msgPtr = this.proj._proj_context_errno_string(ctx, r);
+                const msg = this.proj.UTF8ToString(msgPtr);
+                throw new Error(`_proj_trans_array error ${msg}`);
+            }
+
+            let res = []
+            for (let p = 0; p < number_of_points; p++) {
+                let coord = [];
+                coord.push(coordView[p * 4 + 0]);
+                coord.push(coordView[p * 4 + 1]);
+                if (points[p].length > 2) coord.push(coordView[p * 4 + 2]);
+                if (points[p].length > 3) coord.push(coordView[p * 4 + 3]);
+                res.push(coord);
+            }
+            return { points: res };
+        } finally {
+            keep.destroy()
+        }
+    }
+
+    get_last_operation() {
+        let keep = new Keeper(this.proj);
+        try {
+            // https://proj.org/en/stable/development/reference/datatypes.html#c.PJ_PROJ_INFO
+            const struct_ptr = keep.malloc(64); // bigger just in case
+            const operation_ptr = keep.call("_proj_trans_get_last_used_operation", this.P);
+
+            this.proj._proj_pj_info(struct_ptr, operation_ptr);
+            const idPtr = this.proj.getValue(struct_ptr + 0, 'i32');
+            const descriptionPtr = this.proj.getValue(struct_ptr + 4, 'i32');
+            const definitionPtr = this.proj.getValue(struct_ptr + 8, 'i32');
+            const has_inverse = !!this.proj.getValue(struct_ptr + 12, 'i32');
+            const accuracy = this.proj.getValue(struct_ptr + 16, 'double');
+
+            const PROJ_5 = 0;
+            const PJ_WKT2_2019 = 2;
+
+            const optionStr = "MULTILINE=YES";
+            const optionStrPtr = keep.string(optionStr);
+
+            // We need 8 bytes (two 32-bit pointers: one for the string, one for NULL)
+            const optionsArrayPtr = keep.malloc(8);
+
+            this.proj.setValue(optionsArrayPtr, optionStrPtr, 'i32');
+            this.proj.setValue(optionsArrayPtr + 4, 0, 'i32'); // null terminator.
+
+            const proj_5 = this.proj._proj_as_proj_string(this.ctx, operation_ptr, PROJ_5, optionsArrayPtr);
+            const wkt2 = this.proj._proj_as_wkt(this.ctx, operation_ptr, PJ_WKT2_2019, 0);
+
+            const res = {
+                id: this.proj.UTF8ToString(idPtr),
+                description: this.proj.UTF8ToString(descriptionPtr),
+                definition: this.proj.UTF8ToString(definitionPtr),
+                has_inverse: has_inverse,
+                accuracy: accuracy,
+                proj_5: this.proj.UTF8ToString(proj_5),
+                wkt2: this.proj.UTF8ToString(wkt2),
+            };
+            return res;
+        } finally {
+            keep.destroy();
+        }
+    }
+};
+class Proj {
+    constructor() {
+        this.proj;
+        this.ctx;
+        this.init_promise;
+        this.ptr_size;
+    }
+
+    // After construction call the asynchronous method "init"
+    // to load the WASM module
+    // on_loaded: (optional) callback called when PROJ module is loaded.
+    // on_failed: (optional) callback called when there is any error.
+    async init(on_loaded, on_failed) {
+        if (typeof ProjModuleFactory === 'undefined') {
+            throw new Error(
+                "'ProjModuleFactory' is not defined. Have you loaded projModule.js?");
+        }
+        if (!this.init_promise) {
+            this.init_promise = ProjModuleFactory();
+        }
+        this.init_promise
+            .then(module => {
+                this.proj = this.proj ?? module;
+                this.ctx = this.ctx ?? this.proj._proj_context_create();
+                this.ptr_size = this.proj._get_ptr_size();
+                if (this.ptr_size != 4) {
+                    console.warn("Detected WASM64. Is this code prepared for that?")
+                }
+
+                on_loaded?.(module);
+            })
+            .catch(err => {
+                console.error(`ProjModuleFactory init error: ${err}`);
+                on_failed?.(err);
+            });
+    }
+
+    // in case you want to clean the variables and memory, call this method.
+    // obviously you cannot use it anymore, until you call "init" again.
+    destroy() {
+        if (this.init_promise && !this.proj) {
+            console.error("Proj.destroy called during initialization. Unexpected behaviour.")
+        }
+        if (this.proj)
+            this.proj._proj_destroy(this.ctx);
+
+        this.proj = undefined;
+        this.ctx = undefined;
+        this.init_promise = undefined;
+        this.ptr_size = undefined;
+    }
+
+    // check if PROJ was properly loaded.
+    is_loaded() {
+        return !!this.proj;
+    }
+
+    // Helper function to read char**, like in _proj_cs_get_axis_info
+    _charstarstar_to_string(ptr) {
+        if (!ptr) {
+            return "";
+        }
+        const str_ptr = this.proj.getValue(ptr, '*');
+        if (!str_ptr) {
+            return "";
+        }
+        const str = this.proj.UTF8ToString(str_ptr);
+        return str;
+    }
+
+    // return: { compilation_date, major, minor, patch, release, version }
+    proj_info() {
+        let r = this.proj.proj_info_ems();
+        r.compilation_date =
+            this.proj.UTF8ToString(this.proj._get_compilation_date());
+        return r;
+    }
+
+    // equivalent to projinfo CLI https://proj.org/en/stable/apps/projinfo.html
+    // args: { args, use_network }
+    // return: { rc, msg }
+    projinfo(args) {
+        let msg = "";
+        const callback = (level, message) => { msg += message; };
+
+        const network_enabled =
+            this.proj._proj_context_is_network_enabled(this.ctx);
+        try {
+            if (args.use_network != network_enabled)
+                this.proj._proj_context_set_enable_network(this.ctx,
+                    args.use_network);
+            const rc = this.proj.projinfo_ems(this.ctx, args.args, callback);
+            return { rc: rc, msg: msg };
+        } finally {
+            if (args.use_network != network_enabled)
+                this.proj._proj_context_set_enable_network(this.ctx,
+                    network_enabled);
+        }
+    }
+
+    crs_axes(args) {
+        const ptrSize = this.ptr_size;
+        const doubleSize = 8; // Doubles are 8 bytes
+        const PJ_TYPE_COMPOUND_CRS = 16; // from proj.h
+        let keep = new Keeper(this.proj);
+        let res = {};
+        try {
+            // this function declaration keeps the meaning of "this" from the class
+            const internal_axes = (P_crs) => {
+                const P_cs = keep.call("_proj_crs_get_coordinate_system",
+                    this.ctx, P_crs);
+                const axis_count =
+                    this.proj._proj_cs_get_axis_count(this.ctx, P_cs);
+                const outNamePtr = keep.malloc(ptrSize);
+                const outAbbrevPtr = keep.malloc(ptrSize);
+                const outDirectionPtr = keep.malloc(ptrSize);
+                const outConvFactorPtr = keep.malloc(doubleSize);
+                const outUnitPtr = keep.malloc(ptrSize);
+                let res = {
+                    name: [],
+                    abbr: [],
+                    direction: [],
+                    conv_factor: [],
+                    unit: []
+                };
+                for (let i = 0; i < axis_count; i++) {
+                    const r = this.proj._proj_cs_get_axis_info(
+                        this.ctx, P_cs, i, outNamePtr, outAbbrevPtr,
+                        outDirectionPtr, outConvFactorPtr, outUnitPtr, 0, 0);
+                    if (r != 1) {
+                        throw new Error("error calling proj_cs_get_axis_info");
+                    }
+
+                    res.name.push(this._charstarstar_to_string(outNamePtr));
+                    res.abbr.push(this._charstarstar_to_string(outAbbrevPtr));
+                    res.direction.push(this._charstarstar_to_string(outDirectionPtr));
+                    res.conv_factor.push(
+                        this.proj.getValue(outConvFactorPtr, 'double'));
+                    res.unit.push(this._charstarstar_to_string(outUnitPtr));
+                }
+                return res;
+            };
+            const sourceCRS = keep.string(args.crs);
+            const P_crs = keep.call("_proj_create", this.ctx, sourceCRS);
+            if (this.proj._proj_get_type(P_crs) == PJ_TYPE_COMPOUND_CRS) {
+                const P_crs_0 = keep.call("_proj_crs_get_sub_crs", this.ctx, P_crs, 0);
+                const P_crs_1 = keep.call("_proj_crs_get_sub_crs", this.ctx, P_crs, 1);
+                res = internal_axes(P_crs_0);
+                const res1 = internal_axes(P_crs_1);
+                for (const key in res) {
+                    res[key] = res[key].concat(res1[key]);
+                }
+            } else {
+                res = internal_axes(P_crs);
+            }
+        } finally {
+            keep.destroy();
+        }
+        return res;
+    }
+
+    create_transformer_from_crs_to_crs(args) {
+        const keep = new Keeper(this.proj);
+        try {
+            const src = args.src;
+            const dst = args.dst;
+
+            const sourceCRS = keep.string(src);
+            const targetCRS = keep.string(dst);
+
+            const area = 0;
+            const P = this.proj._proj_create_crs_to_crs(this.ctx, sourceCRS, targetCRS, area);
+            if (P === 0) {
+                throw new Error("proj_create_crs_to_crs returned NULL.");
+            }
+            // the ownership of P is transfered to the transformer
+            const tr = new Transformer(this.proj, this.ctx, P);
+            return tr;
+        } finally {
+            keep.destroy();
+        }
+    }
+
+    // List the CRSs from proj.db
+    crs_list() {
+        const keep = new Keeper(this.proj);
+        try {
+            const auth_name = 0;
+            const params = 0;
+            const count_ptr = keep.malloc(4);
+            const crs_info_list_ptr = keep.call_destroyer(
+                "_proj_get_crs_info_list_from_database",
+                "_proj_crs_info_list_destroy",
+                this.ctx, auth_name, params, count_ptr);
+            const count = this.proj.getValue(count_ptr, 'i32');
+            const ppp = [["auth", "string"], ["code", "string"], ["name", "string"],
+            ["type", "i32"], ["deprecated", "b32"], ["bbox_valid", "b32"],
+            ["west_lon_degree", "double"], ["south_lon_degree", "double"],
+            ["east_lon_degree", "double"], ["north_lon_degree", "double"],
+            ["area_name", "string"], ["projection_method_name", "string"],
+            ["celestial_body_name", "string"]];
+            const list = []
+            for (let i = 0; i < count; i++) {
+                const info_struct_ptr = this.proj.getValue(crs_info_list_ptr + (i * 4), '*');
+                const elem = struct_ptr_to_dict(this.proj, info_struct_ptr, ppp)
+                list.push(elem);
+            }
+            return list;
+        } finally {
+            keep.destroy();
+        }
+    }
+}
