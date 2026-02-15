@@ -50,12 +50,12 @@ class Keeper {
         return this.add(ptr, false);
     };
 
-    destroy() {
+    clean() {
         this.special_destroy.reverse();
         for (const p of this.special_destroy) {
             const [destroyer, ptr] = p;
             if (this.debug)
-                console.debug("call specal destroyer", ptr, destroyer);
+                console.debug("call special destroyer", ptr, destroyer);
             this.proj[destroyer](ptr);
         }
         this.special_destroy = [];
@@ -119,15 +119,22 @@ function struct_ptr_to_dict(proj, struct_ptr, params) {
 }
 
 class Transformer {
-    constructor(proj, ctx, P) {
+    constructor(proj, ctx, P, use_network) {
         this.proj = proj;
-        this.ctx = ctx;
+        this.ctx = proj._proj_context_clone(ctx);
+        this.proj._proj_context_set_enable_network(this.ctx,
+            args.use_network);
         this.P = P;
+        const is_worker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+        if (use_network && !is_worker) {
+            console.warn("Using a transformer in the main thread with use_network may no work as expected.")
+        }
     }
 
-    destroy() {
+    dispose() {
         this.proj._proj_destroy(this.P);
         this.P = undefined;
+        this.proj._proj_destroy(this.ctx);
         this.ctx = undefined;
         this.proj = undefined;
     }
@@ -166,7 +173,7 @@ class Transformer {
             }
             return { points: res };
         } finally {
-            keep.destroy()
+            keep.clean()
         }
     }
 
@@ -210,7 +217,7 @@ class Transformer {
             };
             return res;
         } finally {
-            keep.destroy();
+            keep.clean();
         }
     }
 };
@@ -253,9 +260,9 @@ class Proj {
 
     // in case you want to clean the variables and memory, call this method.
     // obviously you cannot use it anymore, until you call "init" again.
-    destroy() {
+    dispose() {
         if (this.init_promise && !this.proj) {
-            console.error("Proj.destroy called during initialization. Unexpected behaviour.")
+            console.error("Proj.dispose called during initialization. Unexpected behaviour.")
         }
         if (this.proj)
             this.proj._proj_destroy(this.ctx);
@@ -370,38 +377,39 @@ class Proj {
                 res = internal_axes(P_crs);
             }
         } finally {
-            keep.destroy();
+            keep.clean();
         }
         return res;
     }
 
+    // Creates a coordinate transformer
+    // args: {source_crs, target_crs, use_network}
+    // return: new Transformer
     create_transformer_from_crs_to_crs(args) {
         const keep = new Keeper(this.proj);
         try {
-            const src = args.src;
-            const dst = args.dst;
-
-            const sourceCRS = keep.string(src);
-            const targetCRS = keep.string(dst);
-
+            const source_crs = keep.string(args.source_crs);
+            const target_crs = keep.string(args.target_crs);
             const area = 0;
-            const P = this.proj._proj_create_crs_to_crs(this.ctx, sourceCRS, targetCRS, area);
+            const P = this.proj._proj_create_crs_to_crs(this.ctx, source_crs, target_crs, area);
             if (P === 0) {
                 throw new Error("proj_create_crs_to_crs returned NULL.");
             }
             // the ownership of P is transfered to the transformer
-            const tr = new Transformer(this.proj, this.ctx, P);
+            const tr = new Transformer(this.proj, this.ctx, P, args.use_network);
             return tr;
         } finally {
-            keep.destroy();
+            keep.clean();
         }
     }
 
     // List the CRSs from proj.db
-    crs_list() {
+    // args: { auth_name }
+    // return: [ {crs definion} ]
+    crs_list(args) {
         const keep = new Keeper(this.proj);
         try {
-            const auth_name = 0;
+            const auth_name = args.auth_name ? keep.string(args.auth_name) : 0;
             const params = 0;
             const count_ptr = keep.malloc(4);
             const crs_info_list_ptr = keep.call_destroyer(
@@ -423,7 +431,7 @@ class Proj {
             }
             return list;
         } finally {
-            keep.destroy();
+            keep.clean();
         }
     }
 }

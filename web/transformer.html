@@ -119,13 +119,12 @@
                 //console.log(e);
             }
             //h.init(show);
-            const l = h.crs_list();
+            const l = h.crs_list({auth_name:""});
             console.log(l);
-            console.log("done");
             console.log(h.crs_axes({ crs: "EPSG:4326+3855" }))
             let i = h.projinfo({ args: ["EPSG:4314", "EPSG:4258", "-o", "proj"], use_network: false });
             console.log(i.msg);
-            const t = h.create_transformer_from_crs_to_crs({ src: "EPSG:4258", dst: "EPSG:10290" });
+            const t = h.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:10290" });
             let p = t.transform({ points: [[40, 5], [41, 6, 89]] });
             t.get_last_operation();
             console.log(p);
@@ -133,7 +132,7 @@
             let q = t.transform(p);
             console.log(q);
             t.get_last_operation();
-            t.destroy()
+            t.dispose()
 
             document.getElementById("output").innerHTML = ""
         });
