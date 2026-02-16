@@ -170,7 +170,7 @@ class Transformer {
                 if (points[p].length > 3) coord.push(coordView[p * 4 + 3]);
                 res.push(coord);
             }
-            return { points: res };
+            return res;
         } finally {
             keep.clean()
         }
@@ -437,4 +437,8 @@ class Proj {
             keep.clean();
         }
     }
+}
+
+if (typeof exports === 'object' && typeof module === 'object') {
+    module.exports = { Proj: Proj, Transformer: Transformer }
 }
