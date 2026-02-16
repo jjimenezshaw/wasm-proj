@@ -61,6 +61,7 @@
     </style>
     <script src="projModule.js"></script>
     <script src="projFunctions.js"></script>
+    <script src="projBridge.js"></script>
 </head>
 
 <body>
@@ -104,7 +105,10 @@
             });
         }
 
+        let proj;
+        let bridge;
         window.onload = function () {
+
             let p = new Proj();
             h = p;
             function show(e) {
@@ -112,19 +116,57 @@
                 console.log(p.proj_info());
             }
             p.init(show);
+
+
+            /////////////////////////
+            bridge = new WorkerBridge();
+            // Create the entry point proxy
+            proj = bridge.create_proxy('root');
+            // We attach the ID manually so our 'with_timeout' helper works
+            proj._object_id = 'root';
         };
+        async function run() {
+            console.log("--- Standard Call ---");
+            let status = await bridge.get_status();
+            console.log("Worker Status : ", status);
+            // 1. Call add_one dynamically. No need to define it in Client!
+            const i = await proj.proj_info();
+            console.log("work", i);
+            status = await bridge.get_status();
+            console.log("Worker Status : ", status);
+
+            //const l = await proj.crs_list();
+            //console.log("work", l);
+            //const a = await proj.crs_axes({crs:"EPSG:4326"})
+            //console.log(a);
+            const t = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:5677", use_network: true });
+            console.log("w", t);
+            const c = await t.transform({ points: [[54.8, 9.0, 0]] });
+            console.log("worg", c);
+            const last = await t.get_last_operation();
+            console.log("work", last)
+            status = await bridge.get_status();
+            console.log("Worker Status : ", status);
+            await t.dispose();
+            status = await bridge.get_status();
+            console.log("Worker Status after dispose: ", status);
+            await proj.dispose();
+            status = await bridge.get_status();
+            console.log("Worker Status after proj dispose: ", status);
+        }
         document.getElementById("compute").addEventListener("click", compute);
         document.getElementById("clean").addEventListener("click", () => {
             function show(e) {
                 //console.log(e);
             }
             //h.init(show);
-            const l = h.crs_list({auth_name:""});
+
+            const l = h.crs_list({ auth_name: "epsg" });
             console.log(l);
             console.log(h.crs_axes({ crs: "EPSG:4326+3855" }))
-            let i = h.projinfo({ args: ["EPSG:4314", "EPSG:4258", "-o", "proj"], use_network: false });
+            let i = h.projinfo({ args: ["EPSG:4314", "EPSG:4258", "-o", "proj"], use_network: true });
             console.log(i.msg);
-            const t = h.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:10290" });
+            const t = h.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:10290", use_network: true });
             let p = t.transform({ points: [[40, 5], [41, 6, 89]] });
             t.get_last_operation();
             console.log(p);
@@ -133,6 +175,8 @@
             console.log(q);
             t.get_last_operation();
             t.dispose()
+
+            run();
 
             document.getElementById("output").innerHTML = ""
         });

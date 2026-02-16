@@ -119,15 +119,14 @@ function struct_ptr_to_dict(proj, struct_ptr, params) {
 }
 
 class Transformer {
-    constructor(proj, ctx, P, use_network) {
+    constructor(proj, ctx, P) {
         this.proj = proj;
-        this.ctx = proj._proj_context_clone(ctx);
-        this.proj._proj_context_set_enable_network(this.ctx,
-            args.use_network);
+        this.ctx = ctx;
         this.P = P;
+        const use_network = this.proj._proj_context_is_network_enabled(this.ctx);
         const is_worker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
         if (use_network && !is_worker) {
-            console.warn("Using a transformer in the main thread with use_network may no work as expected.")
+            console.warn("Using a PROJ transformer in the main thread with 'use_network' may not work as expected.")
         }
     }
 
@@ -241,7 +240,7 @@ class Proj {
         if (!this.init_promise) {
             this.init_promise = ProjModuleFactory();
         }
-        this.init_promise
+        return this.init_promise
             .then(module => {
                 this.proj = this.proj ?? module;
                 this.ctx = this.ctx ?? this.proj._proj_context_create();
@@ -388,15 +387,19 @@ class Proj {
     create_transformer_from_crs_to_crs(args) {
         const keep = new Keeper(this.proj);
         try {
-            const source_crs = keep.string(args.source_crs);
-            const target_crs = keep.string(args.target_crs);
+            const source_crs = keep.string(args?.source_crs);
+            const target_crs = keep.string(args?.target_crs);
             const area = 0;
-            const P = this.proj._proj_create_crs_to_crs(this.ctx, source_crs, target_crs, area);
+
+            const ctx = this.proj._proj_context_clone(this.ctx);
+            this.proj._proj_context_set_enable_network(ctx, args.use_network);
+            const P = this.proj._proj_create_crs_to_crs(ctx, source_crs, target_crs, area);
             if (P === 0) {
+                this.proj._proj_destroy(ctx);
                 throw new Error("proj_create_crs_to_crs returned NULL.");
             }
-            // the ownership of P is transfered to the transformer
-            const tr = new Transformer(this.proj, this.ctx, P, args.use_network);
+            // the ownership of P and ctx is transfered to the transformer
+            const tr = new Transformer(this.proj, ctx, P);
             return tr;
         } finally {
             keep.clean();
@@ -409,7 +412,7 @@ class Proj {
     crs_list(args) {
         const keep = new Keeper(this.proj);
         try {
-            const auth_name = args.auth_name ? keep.string(args.auth_name) : 0;
+            const auth_name = args?.auth_name ? keep.string(args.auth_name) : 0;
             const params = 0;
             const count_ptr = keep.malloc(4);
             const crs_info_list_ptr = keep.call_destroyer(
