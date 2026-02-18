@@ -33,7 +33,34 @@ function similar_array(a, b, threshold = 1e-6, do_throw = true) {
     return r;
 }
 
-describe('tests', async (t) => {
+async function run_performance_transformer(t, proj) {
+    await t.test('performance_transformer', async (t) => {
+        await t.test('10000 simple transforms', async (t) => {
+            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4326", target_crs: "EPSG:32630" });
+            for (let i = 0; i < 100; i++) {
+                for (let j = 0; j < 100; j++) {
+                    const p = [[10 + j * 0.01, 0 + i * 0.01]]
+                    const r = await tr.transform({ points: p });
+                }
+            }
+            await tr.dispose();
+        })
+
+        await t.test('one big 10000 points simple transform', async (t) => {
+            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4326", target_crs: "EPSG:32630" });
+            let points = [];
+            for (let i = 0; i < 100; i++) {
+                for (let j = 0; j < 100; j++) {
+                    points.push([10 + j * 0.01, 0 + i * 0.01]);
+                }
+            }
+            const r = await tr.transform({ points: points });
+            await tr.dispose();
+        })
+    })
+}
+
+describe('basic tests', async (t) => {
     let proj;
 
     before(async () => {
@@ -84,6 +111,10 @@ describe('tests', async (t) => {
             tr.dispose();
         })
     })
+
+    it('perf', async (t) => {
+        await run_performance_transformer(t, proj);
+    });
 
 });
 
@@ -141,4 +172,8 @@ describe('worker', async (t) => {
             await tr.dispose();
         })
     })
+
+    it('perf', async (t) => {
+        await run_performance_transformer(t, proj);
+    });
 })
