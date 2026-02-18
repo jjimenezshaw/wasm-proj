@@ -1,27 +1,43 @@
-// worker.js
-importScripts('projFunctions.js');
+'use strict'
+const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+
+let node_parentPort;
+if (is_node) {
+    node_parentPort = require('node:worker_threads').parentPort;
+}
 
 const g_object_registry = new Map();
 
 // 'root' is our entry point
 
 async function register_proj(registry) {
-    // initialize the first time:
-    console.log("initializing Proj in worker")
-    importScripts("projModule.js");
-    const root = new Proj();
-    registry.set('root', root);
-    await root.init();
-    console.log("initialized Proj in worker");
+    try {
+        console.log("initializing Proj in worker")
+        if (is_node) {
+            const ProjModuleFactory = require("./projModule.js");
+            globalThis.ProjModuleFactory = ProjModuleFactory;
+            const functions = require("./projFunctions.js");
+            globalThis.Proj = functions.Proj;
+        } else {
+            importScripts("./projModule.js");
+            importScripts("./projFunctions.js");
+        }
+        const root = new Proj();
+        registry.set('root', root);
+        //await root.init();
+    }
+    catch (e) {
+        console.error("Error loading projModule and projFunctions in projWorker:\n" + e);
+        throw e;
+    }
     return true;
 }
 
-self.onmessage = async function (e) {
-    // snake_case destructuring
-    const { correlation_id, object_id, method, args } = e.data;
+async function handle_message(payload) {
+    const { correlation_id, object_id, method, args } = payload;
 
     if (object_id === 'system' && method === 'get_status') {
-        self.postMessage({
+        send_message({
             correlation_id,
             status: 'success',
             result: {
@@ -53,19 +69,19 @@ self.onmessage = async function (e) {
             g_object_registry.delete(object_id);
         }
 
-        // Check if the result is a Transformer (or any object we want to keep by reference)
-        if (result instanceof Transformer) {
-            const new_object_id = `transformer_${crypto.randomUUID()}`;
+        // Check if the result has funcion dispose
+        if (result && typeof result.dispose === 'function') {
+            const new_object_id = `disposable_${crypto.randomUUID()}`;
             g_object_registry.set(new_object_id, result);
 
-            self.postMessage({
+            send_message({
                 correlation_id,
                 status: 'success',
                 // Return a Reference pointer
                 result: { __type: 'REF', object_id: new_object_id }
             });
         } else {
-            self.postMessage({
+            send_message({
                 correlation_id,
                 status: 'success',
                 result: result
@@ -73,10 +89,28 @@ self.onmessage = async function (e) {
         }
 
     } catch (error) {
-        self.postMessage({
+        send_message({
             correlation_id,
             status: 'error',
             error: error.message
         });
     }
 };
+
+function send_message(msg) {
+    if (is_node) {
+        node_parentPort.postMessage(msg);
+    } else {
+        self.postMessage(msg);
+    }
+}
+
+try {
+    if (is_node) {
+        node_parentPort.on('message', handle_message);
+    } else {
+        self.onmessage = (e) => handle_message(e.data);
+    }
+} catch (e) {
+    console.error("ERROR loading worker:", e);
+}

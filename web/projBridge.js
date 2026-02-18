@@ -1,9 +1,21 @@
+'use strict'
+
+const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+
 class WorkerBridge {
-    constructor(worker_path = 'projWorker.js') {
-        this.worker = new Worker(worker_path);
+    constructor(worker_path = './projWorker.js') {
         this.pending_requests = new Map();
 
-        this.worker.onmessage = (e) => this._handle_message(e);
+        if (is_node) {
+            // Node.js Worker Setup
+            const { Worker } = require('node:worker_threads');
+            this.worker = new Worker(worker_path);
+            this.worker.on('message', (data) => this._handle_message({ data }));
+        } else {
+            // Browser Web Worker Setup
+            this.worker = new globalThis.Worker(worker_path);
+            this.worker.onmessage = (e) => this._handle_message(e);
+        }
     }
 
     /**
@@ -109,4 +121,8 @@ class WorkerBridge {
             }
         }
     }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { WorkerBridge };
 }

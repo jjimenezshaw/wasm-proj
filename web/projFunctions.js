@@ -440,5 +440,5 @@ class Proj {
 }
 
 if (typeof exports === 'object' && typeof module === 'object') {
-    module.exports = { Proj: Proj, Transformer: Transformer }
+    module.exports = { Proj: Proj }
 }

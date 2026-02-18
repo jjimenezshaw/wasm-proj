@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJ Network Check</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        #output, #last {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 1em;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+
+        .projinfo-input {
+            width: 90%;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+    </style>
+    <script src="projModule.js"></script>
+    <script src="projFunctions.js"></script>
+    <script src="projBridge.js"></script>
+</head>
+
+<body>
+    <h1>PROJ Network Check</h1>
+    status:<div id="status">&#8987;</div>
+    version:<div id="version"></div><br>
+    output: (expected 3500067.619803459,6074524.809364015,0)<br>
+    <div id="output"></div>
+    last:<div id="last"></div>
+
+    <script>
+        let proj;
+        let bridge;
+        window.onload = async function () {
+            /////////////////////////
+            bridge = new WorkerBridge();
+            // Create the entry point proxy
+            proj = bridge.create_proxy('root');
+            await proj.init();
+            let status = await bridge.get_status();
+            console.log("Worker Status : ", status);
+            const i = await proj.proj_info();
+            console.log("work", i);
+            document.getElementById("version").innerHTML = i.version + "  -  " + i.compilation_date;
+            const t = await proj.create_transformer_from_crs_to_crs({
+                source_crs: "EPSG:4258",
+                target_crs: "EPSG:5677",
+                use_network: true
+            });
+            const c = await t.transform({ points: [[54.8, 9.0, 0]] });
+            console.log("point", c);
+            document.getElementById("output").innerHTML = c;
+            const last = await t.get_last_operation();
+            console.log("last", last);
+            document.getElementById("last").innerHTML = last.proj_5;
+            if (last.proj_5.includes("de_adv_BETA2007.tif")) {
+                document.getElementById("status").innerHTML = "&#9989;";
+            } else {
+                document.getElementById("status").innerHTML = "&#10060;";
+            }
+
+            status = await bridge.get_status();
+            console.log("Worker Status : ", status);
+            await t.dispose();
+            status = await bridge.get_status();
+            console.log("Worker Status after dispose: ", status);
+            await proj.dispose();
+            await bridge.close();
+            return true;
+        };
+    </script>
+</body>
+
+</html>
