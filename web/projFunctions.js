@@ -156,7 +156,7 @@ class Transformer {
 
             const r = this.proj._proj_trans_array(this.P, inverse ? -1 : 1, number_of_points, coordPtr);
             if (r != 0) {
-                const msgPtr = this.proj._proj_context_errno_string(ctx, r);
+                const msgPtr = this.proj._proj_context_errno_string(this.ctx, r);
                 const msg = this.proj.UTF8ToString(msgPtr);
                 throw new Error(`_proj_trans_array error ${msg}`);
             }
@@ -397,6 +397,28 @@ class Proj {
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
                 throw new Error("proj_create_crs_to_crs returned NULL.");
+            }
+            // the ownership of P and ctx is transfered to the transformer
+            const tr = new Transformer(this.proj, ctx, P);
+            return tr;
+        } finally {
+            keep.clean();
+        }
+    }
+
+    // Creates a coordinate transformer
+    // args: {pipeline, use_network}
+    // return: new Transformer
+    create_transformer_from_pipeline(args) {
+        const keep = new Keeper(this.proj);
+        try {
+            const pipeline = keep.string(args?.pipeline);
+            const ctx = this.proj._proj_context_clone(this.ctx);
+            this.proj._proj_context_set_enable_network(ctx, args.use_network ? 1 : 0);
+            const P = this.proj._proj_create(ctx, pipeline);
+            if (P === 0) {
+                this.proj._proj_destroy(ctx);
+                throw new Error("proj_create returned NULL.");
             }
             // the ownership of P and ctx is transfered to the transformer
             const tr = new Transformer(this.proj, ctx, P);

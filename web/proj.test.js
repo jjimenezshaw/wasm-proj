@@ -101,7 +101,7 @@ describe('basic tests', async (t) => {
         });
     });
 
-    it('transform', async (t) => {
+    it('transform crs to crs', async (t) => {
         await t.test('simple', (t) => {
             const tr = proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             let p = tr.transform({ points: [[47, 8], [47, 8, 1189]] });
@@ -111,6 +111,91 @@ describe('basic tests', async (t) => {
             tr.dispose();
         })
     })
+
+    it('transform invalid coordinate', async (t) => {
+        await t.test('simple', (t) => {
+            const tr = proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
+            assert.throws(() => { tr.transform({ points: [[147, 8]] }); }, { message: /Invalid coordinate/i });
+            tr.dispose();
+        })
+    })
+
+    it('transform pipeline', async (t) => {
+        await t.test('MGI / Austria GK M34', (t) => {
+            // EPSG:31259
+            const tr = proj.create_transformer_from_pipeline({
+                pipeline:
+                    "+proj=tmerc +lat_0=0 +lon_0=16.3333333333333 +k=1 +x_0=750000 +y_0=-5000000 +ellps=bessel +units=m +no_defs"
+            });
+            // this pipeline is lon-lat in radians.
+            const point = [16, 48].map((c) => c * Math.PI / 180); // Somewhere near Wien.
+            let p = tr.transform({ points: [point] });
+            assert.equal(p.length, 1);
+            assert.ok(similar_array(p[0], [725127.919986, 317938.999087], 1e-4))
+            tr.dispose();
+        })
+
+        await t.test('From WGS84 to MGI / Austria GK M34', (t) => {
+            const tr = proj.create_transformer_from_pipeline({
+                pipeline: `+proj=pipeline
+                    +step +proj=axisswap +order=2,1
+                    +step +proj=unitconvert +xy_in=deg +xy_out=rad
+                    +step +proj=push +v_3
+                    +step +proj=cart +ellps=WGS84
+                    +step +inv +proj=helmert +x=577.326 +y=90.129 +z=463.919 +rx=5.137 +ry=1.474
+                            +rz=5.297 +s=2.4232 +convention=position_vector
+                    +step +inv +proj=cart +ellps=bessel
+                    +step +proj=pop +v_3
+                    +step +proj=tmerc +lat_0=0 +lon_0=16.3333333333333 +k=1 +x_0=750000
+                            +y_0=-5000000 +ellps=bessel
+                    +step +proj=axisswap +order=2,1`
+            });
+            // this pipeline is lat-lon in degrees, output in n-e.
+            const point = [48, 16]; // Somewhere near Wien.
+            let p = tr.transform({ points: [point] });
+            assert.equal(p.length, 1);
+            assert.ok(similar_array(p[0], [317993.014558, 725213.063933], 1e-4))
+            tr.dispose();
+        })
+    })
+
+    await it('axes', async (t) => {
+        await it('2D', async (t) => {
+            const axes = await proj.crs_axes({ crs: "EPSG:4326" });
+            const expected = {
+                name: ['Geodetic latitude', 'Geodetic longitude'],
+                abbr: ['Lat', 'Lon'],
+                direction: ['north', 'east'],
+                conv_factor: [0.017453292519943295, 0.017453292519943295],
+                unit: ['degree', 'degree']
+            };
+            assert.deepEqual(axes, expected);
+        });
+        await it('3D', async (t) => {
+            const axes = await proj.crs_axes({ crs: "EPSG:7909" });
+            const expected = {
+                name: ['Geodetic latitude', 'Geodetic longitude', 'Ellipsoidal height'],
+                abbr: ['Lat', 'Lon', 'h'],
+                direction: ['north', 'east', 'up'],
+                conv_factor: [0.017453292519943295, 0.017453292519943295, 1],
+                unit: ['degree', 'degree', 'metre']
+            };
+            assert.deepEqual(axes, expected);
+        });
+        await it('compound', async (t) => {
+            const axes = await proj.crs_axes({ crs: "EPSG:6405+8228" });
+            const expected = {
+                name: ['Easting', 'Northing', 'Gravity-related height'],
+                abbr: ['X', 'Y', 'H'],
+                direction: ['east', 'north', 'up'],
+                conv_factor: [0.3048, 0.3048, 0.3048],
+                unit: ['foot', 'foot', 'foot']
+            };
+            assert.deepEqual(axes, expected);
+        });
+    });
+
+
 
     it('perf', async (t) => {
         await run_performance_transformer(t, proj);
@@ -170,6 +255,14 @@ describe('worker', async (t) => {
             assert.ok(similar_array(p[0], [2642695.4201556733, 1205590.5221826336], 1e-4))
             assert.ok(similar_array(p[1], [2642695.405662641, 1205590.4946125143, 1189], 1e-4))
             await tr.dispose();
+        })
+    })
+
+    it('transform invalid coordinate', async (t) => {
+        await t.test('simple', async (t) => {
+            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
+            assert.rejects(async () => { await tr.transform({ points: [[147, 8]] }); }, { message: /Invalid coordinate/i });
+            tr.dispose();
         })
     })
 
