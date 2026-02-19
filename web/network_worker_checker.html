@@ -60,7 +60,7 @@
             /////////////////////////
             bridge = new WorkerBridge();
             // Create the entry point proxy
-            proj = bridge.create_proxy('root');
+            proj = bridge.create_main_proxy();
             await proj.init();
             let status = await bridge.get_status();
             console.log("Worker Status : ", status);

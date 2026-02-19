@@ -268,9 +268,7 @@ describe('worker', async (t) => {
     before(async () => {
         bridge = new WorkerBridge();
         // Create the entry point proxy
-        proj = await bridge.create_proxy('root');
-        // We attach the ID manually so our 'with_timeout' helper works
-        proj._object_id = 'root';
+        proj = await bridge.create_main_proxy();
         let status = await bridge.get_status();
         assert.equal(status.registry_size, 0);
         await proj.init();

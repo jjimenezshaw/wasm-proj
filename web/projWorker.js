@@ -8,8 +8,6 @@ if (is_node) {
 
 const g_object_registry = new Map();
 
-// 'root' is our entry point
-
 async function register_proj(registry) {
     try {
         console.log("initializing Proj in worker")
@@ -23,8 +21,8 @@ async function register_proj(registry) {
             importScripts("./projFunctions.js");
         }
         const root = new Proj();
+        // 'root' is the main entry point
         registry.set('root', root);
-        //await root.init();
     }
     catch (e) {
         console.error("Error loading projModule and projFunctions in projWorker:\n" + e);

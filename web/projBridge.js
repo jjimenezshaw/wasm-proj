@@ -18,6 +18,10 @@ class WorkerBridge {
         }
     }
 
+    create_main_proxy() {
+        return this.create_proxy('root');
+    }
+
     /**
      * Creates a Proxy that acts as the remote object.
      * @param {string} object_id 
