@@ -211,7 +211,7 @@ describe('basic tests', async (t) => {
         });
 
         await it('crs_list epsg', async (t) => {
-            const list = await proj.crs_list({ auth_name:'EPSG'});
+            const list = await proj.crs_list({ auth_name: 'EPSG' });
             assert.ok(list.length > 7000);
             assert.ok(list.length < 13000);
 
@@ -222,8 +222,8 @@ describe('basic tests', async (t) => {
         });
 
         await it('crs_list none', async (t) => {
-            const list = await proj.crs_list({ auth_name:'foo'});
-            assert.equal(list.length,0);
+            const list = await proj.crs_list({ auth_name: 'foo' });
+            assert.equal(list.length, 0);
         });
     });
 
@@ -327,4 +327,12 @@ describe('worker', async (t) => {
     it('perf', async (t) => {
         await run_performance_transformer(t, proj);
     });
+
+    await it('different timeout that triggers', async (t) => {
+        // crs_list is slow.
+        assert.rejects(async () => { await bridge.with_timeout(proj, 10).crs_list(); },
+            { message: /Timeout: crs_list exceeded 10ms/i }
+        );
+    });
+
 })

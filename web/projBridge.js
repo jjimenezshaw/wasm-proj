@@ -27,6 +27,9 @@ class WorkerBridge {
         // The handler intercepts property access (method calls)
         const handler = {
             get: (target, prop) => {
+                // Intercept a special property to reveal the object_id
+                if (prop === '__object_id') return object_id;
+
                 // If we try to await the proxy itself, ignore .then
                 if (prop === 'then') return undefined;
 
@@ -39,19 +42,12 @@ class WorkerBridge {
         return new Proxy({}, handler);
     }
 
-    /**
-     * Helper to create a proxy with a specific temporary timeout
-     */
+    // Helper to create a proxy with a specific timeout
     with_timeout(proxy, timeout_ms) {
-        // We assume the proxy was created by this bridge. 
-        // We return a NEW proxy pointing to the same ID but with new timeout.
-        // (Implementation trick: we can read a hidden symbol or just manually recreate it 
-        // if we know the ID, but for this example, I'll allow passing the ID directly 
-        // or just wrapping the logic differently).
-
-        // Simpler approach for this example: 
-        // We attach the ID to the proxy so we can read it back.
-        const id = proxy._object_id;
+        const id = proxy.__object_id;
+        if (!id) {
+            throw new Error("Provided object is not a valid Worker Proxy");
+        }
         return this.create_proxy(id, timeout_ms);
     }
 
@@ -77,7 +73,7 @@ class WorkerBridge {
         });
     }
 
-    get_status(timeout_ms = 200000) {
+    get_status(timeout_ms = 2000) {
         // We route this to the special 'system' ID we just set up
         return this.execute('system', 'get_status', [], timeout_ms);
     }
@@ -113,8 +109,6 @@ class WorkerBridge {
             if (result && result.__type === 'REF') {
                 // Automatically wrap the result in a Proxy!
                 const proxy = this.create_proxy(result.object_id);
-                // Attach ID to proxy for debugging or referencing
-                proxy._object_id = result.object_id;
                 resolve(proxy);
             } else {
                 resolve(result);
