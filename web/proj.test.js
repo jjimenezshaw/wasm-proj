@@ -195,6 +195,38 @@ describe('basic tests', async (t) => {
         });
     });
 
+    await it('crs_list', async (t) => {
+        await it('crs_list all', async (t) => {
+            const list = await proj.crs_list();
+            assert.ok(list.length > 10000);
+
+            assert.equal(list[0].auth, 'EPSG');
+            assert.equal(list[0].code, '2000');
+            assert.equal(list[0].name, 'Anguilla 1957 / British West Indies Grid');
+            assert.equal(list[0].type, 15);
+            assert.equal(list[0].projection_method_name, 'Transverse Mercator');
+            assert.equal(list[0].celestial_body_name, 'Earth');
+
+            assert.ok(list[1].code != '2000');
+        });
+
+        await it('crs_list epsg', async (t) => {
+            const list = await proj.crs_list({ auth_name:'EPSG'});
+            assert.ok(list.length > 7000);
+            assert.ok(list.length < 13000);
+
+            assert.equal(list[0].auth, 'EPSG');
+            assert.equal(list[0].code, '2000');
+
+            assert.ok(list[1].code != '2000');
+        });
+
+        await it('crs_list none', async (t) => {
+            const list = await proj.crs_list({ auth_name:'foo'});
+            assert.equal(list.length,0);
+        });
+    });
+
     it('geod_direct', async (t) => {
         await it('one', async (t) => {
             const res = proj.geodesic_direct({
