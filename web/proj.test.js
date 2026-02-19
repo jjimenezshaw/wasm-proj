@@ -195,7 +195,33 @@ describe('basic tests', async (t) => {
         });
     });
 
+    it('geod_direct', async (t) => {
+        await it('one', async (t) => {
+            const res = proj.geodesic_direct({
+                points: [
+                    { lat1: 40.63972222, lon1: -73.77888889, azi1: 53.5, s12: 5850e3 }
+                ]
+            });
+            assert.ok(similar(res[0].lat2, 49.01466892910852, 0.5e-5));
+            assert.ok(similar(res[0].lon2, 2.5610622580828135, 0.5e-5));
+            assert.ok(similar(res[0].azi2, 111.62946705267377, 0.5e-5));
+        });
+        await it('two', async (t) => {
+            const res = proj.geodesic_direct({
+                points: [
+                    { lat1: 40, lon1: -75, azi1: -10, s12: 2e7 },
+                    { lat1: 40.63972222, lon1: -73.77888889, azi1: 53.5, s12: 5850e3 }
+                ]
+            });
+            assert.ok(similar(res[0].lat2, -39, 1));
+            assert.ok(similar(res[0].lon2, 105, 1));
+            assert.ok(similar(res[0].azi2, -170, 1));
+            assert.ok(similar(res[1].lat2, 49.01466892910852, 0.5e-5));
+            assert.ok(similar(res[1].lon2, 2.5610622580828135, 0.5e-5));
+            assert.ok(similar(res[1].azi2, 111.62946705267377, 0.5e-5));
+        });
 
+    });
 
     it('perf', async (t) => {
         await run_performance_transformer(t, proj);

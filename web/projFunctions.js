@@ -226,6 +226,7 @@ class Proj {
         this.ctx;
         this.init_promise;
         this.ptr_size;
+        this.geod_geodesic_ptr; // GRS80. Here for performance.
     }
 
     // After construction call the asynchronous method "init"
@@ -263,8 +264,14 @@ class Proj {
         if (this.init_promise && !this.proj) {
             console.error("Proj.dispose called during initialization. Unexpected behaviour.")
         }
-        if (this.proj)
+
+        if (this.geod_geodesic_ptr) {
+            this.proj._free(this.geod_geodesic_ptr);
+            this.geod_geodesic_ptr = undefined;
+        }
+        if (this.proj) {
             this.proj._proj_destroy(this.ctx);
+        }
 
         this.proj = undefined;
         this.ctx = undefined;
@@ -455,6 +462,44 @@ class Proj {
                 list.push(elem);
             }
             return list;
+        } finally {
+            keep.clean();
+        }
+    }
+
+    geodesic_direct(args) {
+        const keep = new Keeper(this.proj);
+        try {
+            const geod_geodesic_size = 64 * 8; // there are about 51 doubles in the struc. Take some margin.
+            let geod_geodesic_ptr;
+            if (!args.a) {
+                // use the ptr in proj cache for GRS80. Do not store in keeper.
+                if (!this.geod_geodesic_ptr) {
+                    this.geod_geodesic_ptr = this.proj._malloc(geod_geodesic_size);
+                    this.proj._geod_init(this.geod_geodesic_ptr, 6378137, 1 / 298.257222101); // GRS80
+                }
+                geod_geodesic_ptr = this.geod_geodesic_ptr;
+            } else {
+                geod_geodesic_ptr = keep.malloc(geod_geodesic_size);
+                this.proj._geod_init(geod_geodesic_ptr, args.a, args.f);
+            }
+            const double_size = 8;
+            const lat2_ptr = keep.malloc(double_size);
+            const lon2_ptr = keep.malloc(double_size);
+            const azi2_ptr = keep.malloc(double_size);
+            let res = [];
+            for (let p of args.points) {
+                this.proj._geod_direct(geod_geodesic_ptr,
+                    p.lat1, p.lon1, p.azi1, p.s12,
+                    lat2_ptr, lon2_ptr, azi2_ptr);
+                const e = {
+                    lat2: this.proj.getValue(lat2_ptr, 'double'),
+                    lon2: this.proj.getValue(lon2_ptr, 'double'),
+                    azi2: this.proj.getValue(azi2_ptr, 'double'),
+                }
+                res.push(e);
+            }
+            return res;
         } finally {
             keep.clean();
         }
