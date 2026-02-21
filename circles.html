@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circles on Earth</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        #output,
+        #last {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 1em;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+
+        .projinfo-input {
+            width: 90%;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #map {
+            height: 380px;
+        }
+    </style>
+    <script src="projModule.js"></script>
+    <script src="projFunctions.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+
+<body>
+    <h1>Circles with PROJ</h1>
+    status:<div id="status">&#8987;</div>
+    version:<div id="version"></div><br>
+    output: (expected 3500067.619803459,6074524.809364015,0)<br>
+    <div id="output"></div>
+    last:<div id="last"></div>
+    <div id="map"></div>
+
+    <script>
+        let proj;
+        var map;
+        function compute_circle(lat_lon, radius, point_number = 360) {
+            let points = [];
+            for (let i = 0; i < point_number; i++) {
+                let azi = 0 + i* 360/point_number;
+                points.push({lat1: lat_lon[0], lon1: lat_lon[1], azi1:azi, s12:radius});
+            }
+            let r = proj.geodesic_direct({points:points});
+            let res = r.map(e => [e.lat2, e.lon2]);
+            return res;
+        }
+        window.onload = async function () {
+            /////////////////////////
+            proj = new Proj();
+            // Create the entry point proxy
+            await proj.init();
+            map = L.map('map').setView([51.505, -0.09], 3);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 13,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            let poly = L.polyline([]).addTo(map);
+            let radius = 2e6
+            function marker_compute(latLng, radius) {
+                let c = compute_circle([latLng.lat, latLng.lng], radius);
+                poly.setLatLngs(c);
+            }
+            let marker = L.marker([51.5, -0.09], {draggable:true}).addTo(map);
+            let p = marker.getLatLng();
+            marker_compute(p, radius);
+            marker.on('move', (e) => {
+                marker_compute(e.latlng, radius);
+            });
+        };
+    </script>
+</body>
+
+</html>
