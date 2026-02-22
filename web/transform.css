@@ -332,13 +332,14 @@ textarea[readonly]:focus {
 }
 
 .clear-btn:hover {
-    color: #dc2626; 
+    color: #dc2626;
 }
 
 /* Ensure text doesn't hide behind the button on the right */
 .combo-container input[type="text"] {
     padding-right: 28px;
-    padding-left: 0.4rem; /* Restores standard left padding */
+    padding-left: 0.4rem;
+    /* Restores standard left padding */
 }
 
 .textarea-container {
@@ -347,14 +348,15 @@ textarea[readonly]:focus {
 }
 
 .textarea-container textarea {
-    padding-right: 32px; /* A bit more padding to account for scrollbars */
+    padding-right: 32px;
+    /* A bit more padding to account for scrollbars */
     padding-left: 0.4rem;
 }
 
 /* Shift textarea clear button to avoid overlapping the vertical scrollbar */
 .textarea-container .clear-btn {
     top: 10px;
-    right: 20px; 
+    right: 20px;
 }
 
 select.combo-select {
@@ -429,8 +431,8 @@ select.combo-select option:checked {
     }
 
     .field-inline {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.2rem;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
     }
 }
