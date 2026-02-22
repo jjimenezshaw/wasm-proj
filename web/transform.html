@@ -5,398 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRS Transformation Tool</title>
-    <style>
-        :root {
-            --primary-color: #2563eb;
-            --primary-hover: #1d4ed8;
-            --border-color: #d1d5db;
-            --bg-color: #f9fafb;
-            --readonly-bg: #e5e7eb;
-        }
 
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #f3f4f6;
-            color: #1f2937;
-            padding: 1rem;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+    <link rel="stylesheet" href="./transform.css" />
 
-        a {
-            text-decoration: none;
-        }
-
-        .main-wrapper {
-            width: 100%;
-            max-width: 1000px;
-            position: relative;
-        }
-
-        /* --- Loading State Styles --- */
-        #loading-indicator {
-            display: none;
-            position: absolute;
-            top: 30%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 3rem;
-            z-index: 100;
-            animation: pulse 3.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 0.3;
-                transform: translate(-50%, -50%) scale(0.9);
-            }
-
-            50% {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1.1);
-            }
-
-            100% {
-                opacity: 0.3;
-                transform: translate(-50%, -50%) scale(0.9);
-            }
-        }
-
-        .loading-state {
-            opacity: 0.4;
-            pointer-events: none;
-            filter: grayscale(20%);
-            transition: opacity 0.3s;
-        }
-
-        /* --- Layout Blocks --- */
-        .full-width-section {
-            background: white;
-            padding: 1.25rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 1rem;
-        }
-
-        .description-text {
-            margin-top: 0;
-            margin-bottom: 1rem;
-            color: #4b5563;
-            line-height: 1.5;
-        }
-
-        .checkbox-group {
-            display: flex;
-            gap: 2rem;
-            padding-top: 0.5rem;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: help;
-        }
-
-        .checkbox-label input {
-            margin-right: 0.4rem;
-        }
-
-        .container {
-            display: flex;
-            gap: 1rem;
-            width: 100%;
-            margin-bottom: 1rem;
-        }
-
-        .column {
-            flex: 1;
-            background: white;
-            padding: 1.25rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-        }
-
-        h2,
-        h3 {
-            margin-top: 0;
-            padding-bottom: 0.25rem;
-            border-bottom: 2px solid #e5e7eb;
-            color: var(--primary-color);
-            margin-bottom: 0.75rem;
-            font-size: 1.25rem;
-        }
-
-        h3 {
-            font-size: 1.1rem;
-        }
-
-        .radio-group {
-            display: flex;
-            gap: 1.5rem;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px dashed var(--border-color);
-        }
-
-        .radio-label {
-            display: flex;
-            align-items: center;
-            font-weight: 600;
-            font-size: 0.875rem;
-            cursor: pointer;
-        }
-
-        .radio-label input {
-            margin-right: 0.25rem;
-        }
-
-        .field {
-            margin-bottom: 0.75rem;
-        }
-
-        .field-inline {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .field-inline label {
-            margin-bottom: 0;
-            /* Overrides the block label margin */
-            white-space: nowrap;
-        }
-
-        .helper-text {
-            font-size: 0.8rem;
-            color: #6b7280;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.2rem;
-            font-size: 0.8rem;
-            color: #4b5563;
-            font-weight: 600;
-        }
-
-        .required {
-            color: #dc2626;
-            margin-left: 0.1rem;
-            font-weight: bold;
-        }
-
-        .flex-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.2rem;
-        }
-
-        .flex-header label {
-            margin-bottom: 0;
-        }
-
-        .freetext-text {
-            min-height: 90px;
-        }
-
-        .btn-small {
-            background-color: #e5e7eb;
-            color: #374151;
-            border: 1px solid var(--border-color);
-            padding: 0.15rem 0.5rem;
-            font-size: 0.75rem;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-small:hover {
-            background-color: #d1d5db;
-        }
-
-        .input-with-link {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            width: 100%;
-        }
-
-        .info-link {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            width: 32px;
-            height: 32px;
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 1.1rem;
-            transition: background 0.2s;
-        }
-
-        .info-link:hover {
-            background: #e5e7eb;
-        }
-
-        .info-link.disabled {
-            pointer-events: none;
-            opacity: 0.4;
-            filter: grayscale(100%);
-        }
-
-        input[type="text"],
-        input[type="number"],
-        textarea {
-            width: 100%;
-            padding: 0.4rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        textarea[readonly] {
-            background-color: var(--readonly-bg);
-            cursor: default;
-            color: #374151;
-        }
-
-        textarea[readonly]:focus {
-            outline: none;
-            border-color: var(--border-color);
-        }
-
-        .section-divider {
-            margin: 1rem 0;
-            border: 0;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .combo-container {
-            position: relative;
-            flex: 1;
-        }
-
-        .combo-dropdown {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            margin-top: 2px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background: white;
-            z-index: 10;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .combo-container.open .combo-dropdown {
-            display: block;
-        }
-
-        select.combo-select {
-            width: 100%;
-            border: none;
-            outline: none;
-            padding: 2px;
-            font-family: inherit;
-            background: transparent;
-        }
-
-        select.combo-select option {
-            padding: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        select.combo-select option:hover,
-        select.combo-select option:checked {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .action-area {
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-
-        .btn-transform {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 0.75rem 2.5rem;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-            transition: background-color 0.2s, transform 0.1s;
-        }
-
-        .btn-transform:hover:not(:disabled) {
-            background-color: var(--primary-hover);
-        }
-
-        .btn-transform:active:not(:disabled) {
-            transform: translateY(2px);
-        }
-
-        .btn-transform:disabled {
-            background-color: #d1d5db;
-            color: #9ca3af;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .summary-header {
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 0.25rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .summary-header h3 {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .field-inline {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.2rem;
-            }
-        }
-    </style>
     <script src="./projModule.js"></script>
     <script src="./projFunctions.js"></script>
     <script src="./projBridge.js"></script>
 
+    <script src="./transform.js"></script>
 </head>
 
 <body>
-
     <div class="main-wrapper">
         <div id="loading-indicator">&#8987;</div>
 
@@ -407,13 +26,13 @@
                     Select your source and target CRS.
                     You can choose predefined systems from the catalog or define custom ones via free text (WKT).
                     Enter your coordinates below to perform the transformation.
-                    Implemented with <a href="https://proj.org" target="_blank">PROJ</a>.
+                    Implemented with <a href="https://proj.org" target="_blank">PROJ</a> <span id="proj-version"></span>
                 </p>
 
                 <div class="checkbox-group">
                     <label class="checkbox-label"
                         title="Promotes 2D CRS to 3D. It may change the transformation behavior.">
-                        <input type="checkbox" id="promote-3d" onchange="validateForm()"> Promote to 3D
+                        <input type="checkbox" id="promote-3d" checked onchange="validateForm()"> Promote to 3D
                     </label>
                     <label class="checkbox-label"
                         title="Enables querying available high-accuracy transformation grids over the network. It can be slower.">
@@ -442,6 +61,8 @@
                             <label>Horizontal or 3D CRS <span class="required">*</span></label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="source-horizontal-container">
+                                    <button class="clear-btn" onclick="clearField('source-horizontal-input')"
+                                        title="Clear field">&times;</button>
                                     <input type="text" id="source-horizontal-input" placeholder="Type to search..."
                                         autocomplete="off" oninput="validateForm()">
                                     <div class="combo-dropdown">
@@ -456,6 +77,8 @@
                             <label>Vertical CRS</label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="source-vertical-container">
+                                    <button class="clear-btn" onclick="clearField('source-vertical-input')"
+                                        title="Clear field">&times;</button>
                                     <input type="text" id="source-vertical-input" placeholder="Type to search..."
                                         autocomplete="off" oninput="validateForm()">
                                     <div class="combo-dropdown">
@@ -473,14 +96,18 @@
                             <div class="flex-header">
                                 <label for="source-freetext">Custom CRS Definition <span
                                         class="required">*</span></label>
-                                <button class="btn-small" onclick="document.getElementById('source-file').click()">Load
-                                    File</button>
+                                <button class="btn-small" onclick="document.getElementById('source-file').click()">
+                                    Load File</button>
                                 <input type="file" id="source-file" style="display:none"
                                     onchange="handleFileLoad(event, 'source-freetext')">
                             </div>
-                            <textarea id="source-freetext" class="freetext-text" spellcheck="false"
-                                placeholder="Enter custom CRS definition..."
-                                oninput="updateMetadata('source'); validateForm();"></textarea>
+                            <div class="textarea-container">
+                                <button class="clear-btn" onclick="clearField('source-freetext')"
+                                    title="Clear field">&times;</button>
+                                <textarea id="source-freetext" class="freetext-text" spellcheck="false"
+                                    placeholder="Enter custom CRS definition..."
+                                    oninput="updateMetadata('source'); validateForm();"></textarea>
+                            </div>
                         </div>
                     </div>
 
@@ -499,9 +126,20 @@
                     <hr class="section-divider">
 
                     <div class="field">
-                        <label>Input Coordinates <span class="required">*</span></label>
-                        <textarea id="source-coordinates" placeholder="Enter coordinates here (e.g., X Y Z)..."
-                            style="min-height: 80px;" oninput="validateForm()"></textarea>
+                        <div class="flex-header">
+                            <label>Input Coordinates <span class="required">*</span></label>
+                            <button class="btn-small" onclick="document.getElementById('coords-file').click()">
+                                Load File</button>
+                            <input type="file" id="coords-file" style="display:none"
+                                onchange="handleFileLoad(event, 'source-coordinates')">
+                        </div>
+                        <div class="textarea-container">
+                            <button class="clear-btn" onclick="clearField('source-coordinates')"
+                                title="Clear field">&times;</button>
+                            <textarea id="source-coordinates" class="mono-space"
+                                placeholder="Enter coordinates here (e.g., X Y Z)..." style="min-height: 80px;"
+                                oninput="validateForm()"></textarea>
+                        </div>
                     </div>
                 </div>
 
@@ -524,6 +162,8 @@
                             <label>Horizontal or 3D CRS <span class="required">*</span></label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="target-horizontal-container">
+                                    <button class="clear-btn" onclick="clearField('target-horizontal-input')"
+                                        title="Clear field">&times;</button>
                                     <input type="text" id="target-horizontal-input" placeholder="Type to search..."
                                         autocomplete="off" oninput="validateForm()">
                                     <div class="combo-dropdown">
@@ -538,6 +178,8 @@
                             <label>Vertical CRS</label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="target-vertical-container">
+                                    <button class="clear-btn" onclick="clearField('target-vertical-input')"
+                                        title="Clear field">&times;</button>
                                     <input type="text" id="target-vertical-input" placeholder="Type to search..."
                                         autocomplete="off" oninput="validateForm()">
                                     <div class="combo-dropdown">
@@ -560,9 +202,13 @@
                                 <input type="file" id="target-file" style="display:none"
                                     onchange="handleFileLoad(event, 'target-freetext')">
                             </div>
-                            <textarea id="target-freetext" class="freetext-text" spellcheck="false"
-                                placeholder="Enter custom CRS definition..."
-                                oninput="updateMetadata('target'); validateForm();"></textarea>
+                            <div class="textarea-container">
+                                <button class="clear-btn" onclick="clearField('target-freetext')"
+                                    title="Clear field">&times;</button>
+                                <textarea id="target-freetext" class="freetext-text" spellcheck="false"
+                                    placeholder="Enter custom CRS definition..."
+                                    oninput="updateMetadata('target'); validateForm();"></textarea>
+                            </div>
                         </div>
                     </div>
 
@@ -592,20 +238,20 @@
                             <button class="btn-small"
                                 onclick="copyToClipboard('target-coordinates', this)">Copy</button>
                         </div>
-                        <textarea id="target-coordinates" readonly placeholder="Transformed results will appear here..."
-                            style="min-height: 80px;"></textarea>
+                        <textarea id="target-coordinates" class="mono-space" readonly
+                            placeholder="Transformed results will appear here..." style="min-height: 80px;"></textarea>
                     </div>
                 </div>
             </div>
 
             <div class="action-area">
-                <button id="btn-transform" class="btn-transform" onclick="handleTransform()" disabled>Transform
+                <button id="btn-transform" class="btn-transform" disabled>Transform
                     Coordinates</button>
             </div>
 
             <div class="full-width-section" id="summary-section">
                 <div class="flex-header summary-header">
-                    <h3>Operation Summary</h3>
+                    <h3>Last Operation Summary</h3>
                     <button class="btn-small" onclick="copyToClipboard('transformation-summary', this)">Copy</button>
                 </div>
                 <textarea id="transformation-summary" readonly
@@ -614,458 +260,6 @@
             </div>
         </div>
     </div>
-
-    <script>
-        // Safari cannot change the display in options in select. So do a heavier work.
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-        async function copyToClipboard(targetId, btnElement) {
-            const textArea = document.getElementById(targetId);
-
-            // Don't do anything if the text area is empty
-            if (!textArea.value.trim()) return;
-
-            try {
-                await navigator.clipboard.writeText(textArea.value);
-
-                // Visual feedback
-                const originalText = btnElement.innerText;
-                btnElement.innerText = 'Copied!';
-                btnElement.style.backgroundColor = '#d1fae5'; // subtle green success color
-
-                // Revert back after 2 seconds
-                setTimeout(() => {
-                    btnElement.innerText = originalText;
-                    btnElement.style.backgroundColor = '';
-                }, 2000);
-
-            } catch (err) {
-                console.error('Failed to copy text: ', err);
-                alert('Could not copy to clipboard. Please check browser permissions.');
-            }
-        }
-
-        function handleFileLoad(event, targetId) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const textArea = document.getElementById(targetId);
-                textArea.value = e.target.result;
-
-                const prefix = targetId.split('-')[0];
-                updateMetadata(prefix);
-                validateForm();
-            };
-            reader.readAsText(file);
-
-            event.target.value = '';
-        }
-
-        function updateURLParams() {
-            const params = new URLSearchParams();
-
-            params.set('st', document.querySelector('input[name="source_type"]:checked').value);
-            params.set('tt', document.querySelector('input[name="target_type"]:checked').value);
-
-            params.set('sh', getCrsId(document.getElementById('source-horizontal-input').value));
-            params.set('sv', getCrsId(document.getElementById('source-vertical-input').value));
-            params.set('sf', document.getElementById('source-freetext').value);
-            params.set('se', document.getElementById('source-epoch').value);
-
-            params.set('th', getCrsId(document.getElementById('target-horizontal-input').value));
-            params.set('tv', getCrsId(document.getElementById('target-vertical-input').value));
-            params.set('tf', document.getElementById('target-freetext').value);
-            params.set('te', document.getElementById('target-epoch').value);
-
-            params.set('coords', document.getElementById('source-coordinates').value);
-            params.set('p3d', document.getElementById('promote-3d').checked ? '1' : '');
-            params.set('net', document.getElementById('use-network').checked ? '1' : '');
-
-            const keysToDelete = [];
-            params.forEach((value, key) => {
-                if (value === '') keysToDelete.push(key);
-            });
-            keysToDelete.forEach(key => params.delete(key));
-
-            const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?${params.toString()}`;
-            window.history.replaceState({ path: newUrl }, '', newUrl);
-        }
-
-        function loadFromURLParams() {
-            const params = new URLSearchParams(window.location.search);
-
-            if (params.has('st')) document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
-            if (params.has('tt')) document.querySelector(`input[name="target_type"][value="${params.get('tt')}"]`).checked = true;
-
-            document.getElementById('source-horizontal-input').value = getFullDescriptor(params.get('sh')) ?? '';
-            document.getElementById('source-vertical-input').value = getFullDescriptor(params.get('sv')) ?? '';
-            document.getElementById('source-freetext').value = params.get('sf') ?? '';
-            document.getElementById('source-epoch').value = params.get('se') ?? '';
-
-            document.getElementById('target-horizontal-input').value = getFullDescriptor(params.get('th')) ?? '';
-            document.getElementById('target-vertical-input').value = getFullDescriptor(params.get('tv')) ?? '';
-            document.getElementById('target-freetext').value = params.get('tf') ?? '';
-            document.getElementById('target-epoch').value = params.get('te') ?? '';
-
-            document.getElementById('source-coordinates').value = params.get('coords') ?? '';
-            document.getElementById('promote-3d').checked = params.get('p3d') === '1';
-            document.getElementById('use-network').checked = params.get('net') === '1';
-        }
-
-        function validateForm() {
-            const btn = document.getElementById('btn-transform');
-            const coords = document.getElementById('source-coordinates').value.trim();
-
-            function checkColumnValidity(prefix) {
-                const mode = document.querySelector(`input[name="${prefix}_type"]:checked`).value;
-                if (mode === 'combo') {
-                    return document.getElementById(`${prefix}-horizontal-input`).value.trim().length > 0;
-                } else {
-                    return document.getElementById(`${prefix}-freetext`).value.trim().length > 0;
-                }
-            }
-
-            const isSourceValid = checkColumnValidity('source');
-            const isTargetValid = checkColumnValidity('target');
-
-            if (coords.length > 0 && isSourceValid && isTargetValid) {
-                btn.disabled = false;
-            } else {
-                btn.disabled = true;
-            }
-
-            updateURLParams();
-        }
-
-        function updateCRSLink(prefix, type, value) {
-            const linkElement = document.getElementById(`${prefix}-${type}-link`);
-            if (!linkElement) return;
-
-            if (value) {
-                const match = value.match(/EPSG:(\d+)/i);
-                if (match) {
-                    const epsgCode = match[1];
-                    linkElement.href = `https://spatialreference.org/ref/epsg/${epsgCode}/`;
-                    linkElement.classList.remove('disabled');
-                    linkElement.title = `View EPSG:${epsgCode} details`;
-                } else {
-                    linkElement.href = "#";
-                    linkElement.classList.add('disabled');
-                    linkElement.title = "No external link available";
-                }
-            } else {
-                linkElement.href = "#";
-                linkElement.classList.add('disabled');
-                linkElement.title = "Select a CRS to view details";
-            }
-        }
-
-        function toggleInputs(columnPrefix) {
-            const selectedType = document.querySelector(`input[name="${columnPrefix}_type"]:checked`).value;
-            const comboGroup = document.getElementById(`${columnPrefix}-combo-group`);
-            const textGroup = document.getElementById(`${columnPrefix}-text-group`);
-
-            if (selectedType === 'combo') {
-                comboGroup.style.display = 'block';
-                textGroup.style.display = 'none';
-                document.getElementById(`${columnPrefix}-freetext`).value = '';
-            } else {
-                comboGroup.style.display = 'none';
-                textGroup.style.display = 'block';
-                document.getElementById(`${columnPrefix}-horizontal-input`).value = '';
-                document.getElementById(`${columnPrefix}-vertical-input`).value = '';
-
-                updateCRSLink(columnPrefix, 'horizontal', '');
-                updateCRSLink(columnPrefix, 'vertical', '');
-            }
-            updateMetadata(columnPrefix);
-            validateForm();
-        }
-
-        function getCrsFromInput(prefix) {
-            const selectedType = document.querySelector(`input[name="${prefix}_type"]:checked`).value;
-            let crs = '';
-            if (selectedType === 'combo') {
-                const horiz = getCrsId(document.getElementById(`${prefix}-horizontal-input`).value);
-                const vert = getCrsId(document.getElementById(`${prefix}-vertical-input`).value);
-                if (horiz) {
-                    crs = horiz;
-                    if (vert) crs += '+' + vert;
-                }
-            } else {
-                crs = document.getElementById(`${prefix}-freetext`).value;
-            }
-            return crs;
-        }
-
-        function updateMetadata(prefix) {
-            const metadataBox = document.getElementById(`${prefix}-metadata`);
-            let crs = getCrsFromInput(prefix);
-
-            let metadataText = "";
-
-            if (crs) {
-                const a = proj.crs_axes({ crs: crs });
-
-                for (let i = 0; i < a.name.length; i++) {
-                    if (i > 0) metadataText += "\n";
-                    metadataText += `${a.name[i]} (${a.abbr[i]})  |  ${a.direction[i]}  -  [${a.unit[i]}]`
-                }
-
-                if (prefix == 'target') {
-                    const ax = a.unit[0].toLowerCase();
-                    const dp = document.getElementById(`decimal-places`);
-                    if (ax.includes('degree') || ax.includes('radian')) {
-                        dp.value = 9;
-                    } else {
-                        dp.value = 4;
-                    }
-                }
-            }
-
-            metadataBox.value = metadataText;
-        }
-
-        function populateSelect(selectElement, dataArray) {
-            const fragment = document.createDocumentFragment();
-            dataArray.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                fragment.appendChild(option);
-            });
-            selectElement.appendChild(fragment);
-        }
-
-        function setupCustomCombobox(prefix, type, dataArray) {
-            const container = document.getElementById(`${prefix}-${type}-container`);
-            const input = document.getElementById(`${prefix}-${type}-input`);
-            const select = document.getElementById(`${prefix}-${type}-select`);
-
-            populateSelect(select, dataArray);
-            select.selectedIndex = -1;
-
-            input.addEventListener('focus', () => container.classList.add('open'));
-            input.addEventListener('click', () => container.classList.add('open'));
-
-            container.addEventListener('focusout', function (e) {
-                if (!container.contains(e.relatedTarget)) {
-                    container.classList.remove('open');
-                }
-            });
-
-            function handleSelection(val) {
-                input.value = val;
-                container.classList.remove('open');
-                input.focus();
-
-                updateMetadata(prefix);
-                updateCRSLink(prefix, type, val);
-                validateForm();
-            }
-
-            select.addEventListener('change', function () {
-                if (this.value) handleSelection(this.value);
-            });
-
-            select.addEventListener('click', function (e) {
-                if (e.target.tagName === 'OPTION' || e.target.tagName === 'SELECT') {
-                    if (select.value) handleSelection(select.value);
-                }
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!container.contains(e.target)) container.classList.remove('open');
-            });
-
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (!container.classList.contains('open')) container.classList.add('open');
-
-                    const direction = e.key === 'ArrowDown' ? 1 : -1;
-                    const options = select.options;
-                    let currentIndex = select.selectedIndex;
-                    let nextIndex = -1;
-
-                    if (direction === 1) {
-                        let start = currentIndex >= 0 ? currentIndex + 1 : 0;
-                        for (let i = start; i < options.length; i++) {
-                            if (options[i].style.display !== 'none') { nextIndex = i; break; }
-                        }
-                    } else {
-                        let start = currentIndex >= 0 ? currentIndex - 1 : options.length - 1;
-                        for (let i = start; i >= 0; i--) {
-                            if (options[i].style.display !== 'none') { nextIndex = i; break; }
-                        }
-                    }
-
-                    if (nextIndex !== -1) select.selectedIndex = nextIndex;
-
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (container.classList.contains('open') && select.selectedIndex !== -1) {
-                        handleSelection(select.options[select.selectedIndex].value);
-                    }
-                } else if (e.key === 'Escape') {
-                    container.classList.remove('open');
-                }
-            });
-
-            input.addEventListener('input', function (e) {
-                container.classList.add('open');
-                const filterText = e.target.value.toLowerCase();
-                select.selectedIndex = -1;
-
-                updateCRSLink(prefix, type, '');
-
-                if (isSafari) {
-                    select.innerHTML = '';
-                    const fragment = document.createDocumentFragment();
-                    for (let i = 0; i < dataArray.length; i++) {
-                        if (dataArray[i].toLowerCase().includes(filterText)) {
-                            const option = document.createElement('option');
-                            option.value = dataArray[i];
-                            option.textContent = dataArray[i];
-                            fragment.appendChild(option);
-                        }
-                    }
-                    select.appendChild(fragment);
-                } else {
-                    const options = select.options;
-                    for (let i = 0; i < options.length; i++) {
-                        const optionText = options[i].textContent.toLowerCase();
-                        options[i].style.display = optionText.includes(filterText) ? '' : 'none';
-                    }
-                }
-            });
-        }
-
-        async function handleTransform() {
-            const sourceCoords = document.getElementById('source-coordinates').value;
-
-            if (!sourceCoords.trim()) return;
-
-            const output = document.getElementById('target-coordinates');
-            output.value = '... computing ...'
-
-            const promote3D = document.getElementById('promote-3d').checked;
-            const useNetwork = document.getElementById('use-network').checked;
-
-            const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
-            let points = []
-            coordLines.forEach(line => {
-                let splitted = line.split(',');
-                if (splitted.length < 2) splitted = line.split(' ');
-                splitted = splitted.filter(n => n) // remove empty elements
-                const floats = splitted.map(e => Number.parseFloat(e));
-                points.push(floats);
-            })
-
-            const summaryBox = document.getElementById('transformation-summary');
-            summaryBox.value = '';
-            let transformer;
-            let transformed;
-            try {
-                transformer = await proj_worker.create_transformer_from_crs_to_crs({
-                    source_crs: getCrsFromInput('source'),
-                    target_crs: getCrsFromInput('target'),
-                    use_network: useNetwork
-                });
-            } catch (e) {
-                output.value = 'Error:' + e;
-                return;
-            }
-            try {
-                transformed = await transformer.transform({ points: points });
-                const dp = document.getElementById(`decimal-places`).value;
-
-                let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
-                output.value = res;
-            } catch (e) {
-                output.value = 'Error:' + e;
-                return;
-            }
-            try {
-                const lastOp = await transformer.get_last_operation();
-                summaryBox.value = lastOp.description + '\n\n' + lastOp.proj_5;
-            } catch (e) {
-                summaryBox.value = 'Error: ' + e;
-            }
-        }
-
-        function getCrsId(descriptor) {
-            // anything before the space is auth:code.
-            const match = (descriptor ?? '').match(/([A-Z0-9_-]*):([A-Z0-9_-]*)( .*|$)/i);
-            if (match) {
-                return `${match[1]}:${match[2]}`;
-            }
-            return '';
-        }
-
-        function getFullDescriptor(id) {
-            const [auth, code] = (id ?? '').split(':');
-            const found = crs_list.find(e => e.auth == auth && e.code == code);
-            if (found) {
-                return `${found.auth}:${found.code} - ${found.name}`;
-            }
-            return '';
-        }
-
-        window.onload = async function () {
-            const appContent = document.getElementById('app-content');
-            const loader = document.getElementById('loading-indicator');
-            loader.style.display = 'block';
-
-            console.log("Downloading resources...");
-
-            console.log("1", Date());
-            proj = new Proj();
-            await proj.init();
-            console.log(proj.proj_info());
-            crs_list = proj.crs_list();
-            console.log("2", Date());
-            /////////////////////////
-            bridge = new WorkerBridge();
-            proj_worker = bridge.create_main_proxy();
-            await proj_worker.init();
-            console.log("3", Date());
-
-            const horizontalData = [];
-            const verticalData = [" - none / ellipsodial height"];
-            const PJ_TYPE_VERTICAL_CRS = 14
-            crs_list.forEach(e => {
-                const text = `${e.auth}:${e.code} - ${e.name}`;
-                if (e.type == PJ_TYPE_VERTICAL_CRS) {
-                    verticalData.push(text);
-                } else {
-                    horizontalData.push(text);
-                }
-            });
-
-            setupCustomCombobox('source', 'horizontal', horizontalData);
-            setupCustomCombobox('source', 'vertical', verticalData);
-            setupCustomCombobox('target', 'horizontal', horizontalData);
-            setupCustomCombobox('target', 'vertical', verticalData);
-
-            loadFromURLParams();
-
-            toggleInputs('source');
-            toggleInputs('target');
-
-            updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
-            updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));
-            updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
-            updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
-
-            loader.style.display = 'none';
-            appContent.classList.remove('loading-state');
-            console.log("4", Date());
-            console.log("Ready.");
-        };
-    </script>
 </body>
 
 </html>

@@ -1,0 +1,561 @@
+'use strict'
+
+// Safari cannot change the display in options in select. So do a heavier work.
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+async function copyToClipboard(targetId, btnElement) {
+    const textArea = document.getElementById(targetId);
+
+    // Don't do anything if the text area is empty
+    if (!textArea.value.trim()) return;
+
+    try {
+        await navigator.clipboard.writeText(textArea.value);
+
+        // Visual feedback
+        const originalText = btnElement.innerText;
+        btnElement.innerText = 'Copied!';
+        btnElement.style.backgroundColor = '#d1fae5'; // subtle green success color
+
+        // Revert back after 2 seconds
+        setTimeout(() => {
+            btnElement.innerText = originalText;
+            btnElement.style.backgroundColor = '';
+        }, 2000);
+
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+        alert('Could not copy to clipboard. Please check browser permissions.');
+    }
+}
+
+function handleFileLoad(event, targetId) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const textArea = document.getElementById(targetId);
+        textArea.value = e.target.result;
+
+        const prefix = targetId.split('-')[0];
+        updateMetadata(prefix);
+        validateForm();
+    };
+    reader.readAsText(file);
+
+    event.target.value = '';
+}
+
+function updateURLParams() {
+    const params = new URLSearchParams();
+
+    params.set('st', document.querySelector('input[name="source_type"]:checked').value);
+    params.set('tt', document.querySelector('input[name="target_type"]:checked').value);
+
+    params.set('sh', getCrsId(document.getElementById('source-horizontal-input').value));
+    params.set('sv', getCrsId(document.getElementById('source-vertical-input').value));
+    params.set('sf', document.getElementById('source-freetext').value);
+    params.set('se', document.getElementById('source-epoch').value);
+
+    params.set('th', getCrsId(document.getElementById('target-horizontal-input').value));
+    params.set('tv', getCrsId(document.getElementById('target-vertical-input').value));
+    params.set('tf', document.getElementById('target-freetext').value);
+    params.set('te', document.getElementById('target-epoch').value);
+
+    params.set('p3d', document.getElementById('promote-3d').checked ? '1' : '');
+    params.set('net', document.getElementById('use-network').checked ? '1' : '');
+    params.set('coords', document.getElementById('source-coordinates').value);
+
+    const keysToDelete = [];
+    params.forEach((value, key) => {
+        if (value === '') keysToDelete.push(key);
+    });
+    keysToDelete.forEach(key => params.delete(key));
+
+    const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({ path: newUrl }, '', newUrl);
+}
+
+function loadFromURLParams(crs_list) {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.has('st')) document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
+    if (params.has('tt')) document.querySelector(`input[name="target_type"][value="${params.get('tt')}"]`).checked = true;
+
+    document.getElementById('source-horizontal-input').value = getFullDescriptor(crs_list, params.get('sh')) ?? '';
+    document.getElementById('source-vertical-input').value = getFullDescriptor(crs_list, params.get('sv')) ?? '';
+    document.getElementById('source-freetext').value = params.get('sf') ?? '';
+    document.getElementById('source-epoch').value = params.get('se') ?? '';
+
+    document.getElementById('target-horizontal-input').value = getFullDescriptor(crs_list, params.get('th')) ?? '';
+    document.getElementById('target-vertical-input').value = getFullDescriptor(crs_list, params.get('tv')) ?? '';
+    document.getElementById('target-freetext').value = params.get('tf') ?? '';
+    document.getElementById('target-epoch').value = params.get('te') ?? '';
+
+    document.getElementById('source-coordinates').value = params.get('coords') ?? '';
+    if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
+    if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
+
+    for (let id of ['source-horizontal-input', 'source-vertical-input', 'target-horizontal-input', 'target-vertical-input']) {
+        document.getElementById(id).title = document.getElementById(id).value;
+    }
+}
+
+function validateForm() {
+    const btn = document.getElementById('btn-transform');
+    const coords = document.getElementById('source-coordinates').value.trim();
+
+    function checkColumnValidity(prefix) {
+        const mode = document.querySelector(`input[name="${prefix}_type"]:checked`).value;
+        if (mode === 'combo') {
+            return document.getElementById(`${prefix}-horizontal-input`).value.trim().length > 0;
+        } else {
+            return document.getElementById(`${prefix}-freetext`).value.trim().length > 0;
+        }
+    }
+
+    const isSourceValid = checkColumnValidity('source');
+    const isTargetValid = checkColumnValidity('target');
+
+    if (coords.length > 0 && isSourceValid && isTargetValid) {
+        btn.disabled = false;
+    } else {
+        btn.disabled = true;
+    }
+
+    updateURLParams();
+}
+
+function updateCRSLink(prefix, type, value) {
+    const linkElement = document.getElementById(`${prefix}-${type}-link`);
+    if (!linkElement) return;
+
+    if (value) {
+        let pair = getCrsAuthCode(value);
+
+        if (pair[0]) {
+            const auth = pair[0];
+            const code = pair[1];
+            linkElement.href = `https://spatialreference.org/ref/${auth.toLowerCase()}/${code}/`;
+            linkElement.classList.remove('disabled');
+            linkElement.title = `View ${auth}:${code} details`;
+        } else {
+            linkElement.href = "#";
+            linkElement.classList.add('disabled');
+            linkElement.title = "No external link available";
+        }
+    } else {
+        linkElement.href = "#";
+        linkElement.classList.add('disabled');
+        linkElement.title = "Select a CRS to view details";
+    }
+}
+
+function toggleInputs(columnPrefix) {
+    const selectedType = document.querySelector(`input[name="${columnPrefix}_type"]:checked`).value;
+    const comboGroup = document.getElementById(`${columnPrefix}-combo-group`);
+    const textGroup = document.getElementById(`${columnPrefix}-text-group`);
+
+    if (selectedType === 'combo') {
+        comboGroup.style.display = 'block';
+        textGroup.style.display = 'none';
+        document.getElementById(`${columnPrefix}-freetext`).value = '';
+    } else {
+        comboGroup.style.display = 'none';
+        textGroup.style.display = 'block';
+        document.getElementById(`${columnPrefix}-horizontal-input`).value = '';
+        document.getElementById(`${columnPrefix}-vertical-input`).value = '';
+
+        updateCRSLink(columnPrefix, 'horizontal', '');
+        updateCRSLink(columnPrefix, 'vertical', '');
+    }
+    updateMetadata(columnPrefix);
+    validateForm();
+}
+
+function getCrsFromInput(prefix) {
+    const selectedType = document.querySelector(`input[name="${prefix}_type"]:checked`).value;
+    let crs = '';
+    if (selectedType === 'combo') {
+        const horiz = getCrsId(document.getElementById(`${prefix}-horizontal-input`).value);
+        const vert = getCrsId(document.getElementById(`${prefix}-vertical-input`).value);
+        if (horiz) {
+            crs = horiz;
+            if (vert) crs += '+' + vert;
+        }
+    } else {
+        crs = document.getElementById(`${prefix}-freetext`).value;
+    }
+    return crs;
+}
+
+function updateMetadata(prefix) {
+    const metadataBox = document.getElementById(`${prefix}-metadata`);
+    let crs = getCrsFromInput(prefix);
+
+    let metadataText = "";
+
+    if (crs) {
+        const prev_log_level = proj.log_level(0); // diable PROJ log messages
+        try {
+            const a = proj.crs_axes({ crs: crs });
+            for (let i = 0; i < a.name.length; i++) {
+                if (i > 0) metadataText += "\n";
+                metadataText += `${a.name[i]} (${a.abbr[i]})  |  ${a.direction[i]}  -  [${a.unit[i]}]`
+            }
+            if (!a.name?.length) {
+                metadataText = `Cannot get data from '${crs}'`;
+            } else if (prefix == 'target') {
+                const axUnit = a.unit[0].toLowerCase();
+                const dp = document.getElementById(`decimal-places`);
+                if (axUnit.includes('degree') || axUnit.includes('rad')) {
+                    dp.value = 9;
+                } else {
+                    dp.value = 4;
+                }
+            }
+        } finally {
+            proj.log_level(prev_log_level);
+        }
+    }
+
+    metadataBox.value = metadataText;
+}
+
+function setVerticalEnabled(prefix, isEnabled) {
+    // Traverse up to find the main .field wrapper for the vertical component
+    const container = document.getElementById(`${prefix}-vertical-container`).closest('.field');
+    const input = document.getElementById(`${prefix}-vertical-input`);
+
+    if (isEnabled) {
+        container.classList.remove('disabled');
+        input.disabled = false;
+    } else {
+        container.classList.add('disabled');
+        input.disabled = true;
+
+        // Clear out existing data when disabled so it isn't accidentally processed
+        input.value = '';
+        updateCRSLink(prefix, 'vertical', '');
+    }
+
+    // Always re-validate the form and update the URL when the state changes
+    validateForm();
+}
+
+function findInCrsList(authCode, crs_list) {
+    if (authCode.length < 2) return null;
+    const ac = authCode.map(e => e.toLowerCase());
+    const inList = crs_list.find(e => e.auth.toLowerCase() == ac[0] && e.code.toLowerCase() == ac[1]);
+    return inList;
+}
+
+function manageVertical(prefix, crs_list) {
+    const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
+    const PJ_TYPE_PROJECTED_CRS = 15;
+
+    const horizAuthCode = getCrsAuthCode(document.getElementById(`${prefix}-horizontal-input`).value);
+    const inList = findInCrsList(horizAuthCode, crs_list);
+    if (inList && (inList.type == PJ_TYPE_GEOGRAPHIC_2D_CRS || inList.type == PJ_TYPE_PROJECTED_CRS)) {
+        setVerticalEnabled(prefix, true);
+    } else {
+        setVerticalEnabled(prefix, false);
+    }
+}
+
+function populateSelect(selectElement, dataArray) {
+    const fragment = document.createDocumentFragment();
+    dataArray.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item;
+        option.textContent = item;
+        option.title = item;
+        fragment.appendChild(option);
+    });
+    selectElement.appendChild(fragment);
+}
+
+function clearField(targetId) {
+    const el = document.getElementById(targetId);
+    el.value = '';
+    el.title = '';
+
+    // Dispatch an input event so your validation, metadata, and URL updating functions run automatically
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    // The ideas was to keep the user's cursor in the box
+    // but Chrome is taking a long time... and it is not worth it. Just press <tab>
+    // el.focus();
+}
+
+// prefix: source, target
+// type: horizontal, vertical
+function setupCustomCombobox(prefix, type, dataArray, crs_list) {
+    const container = document.getElementById(`${prefix}-${type}-container`);
+    const input = document.getElementById(`${prefix}-${type}-input`);
+    const select = document.getElementById(`${prefix}-${type}-select`);
+
+    populateSelect(select, dataArray);
+    select.selectedIndex = -1;
+
+    input.addEventListener('focus', () => container.classList.add('open'));
+    input.addEventListener('click', () => container.classList.add('open'));
+
+    container.addEventListener('focusout', function (e) {
+        const authCode = getCrsAuthCode(e.target.value);
+        if (authCode[0] && !findInCrsList(authCode, crs_list)) {
+            e.target.classList.add('invalid');
+            e.target.title = 'Element not in the catalog.'
+        } else {
+            e.target.classList.remove('invalid');
+            e.target.title = ''
+        }
+        if (!container.contains(e.relatedTarget)) {
+            container.classList.remove('open');
+        }
+    });
+
+    function handleSelection(val) {
+        input.value = val;
+        input.title = val;
+        container.classList.remove('open');
+        // The ideas was to keep the user's cursor in the box
+        // but Chrome is taking a long time... and it is not worth it. Just press <tab>
+        // input.focus();
+
+        updateMetadata(prefix);
+        updateCRSLink(prefix, type, val);
+        if (type == 'horizontal') manageVertical(prefix, crs_list);
+        validateForm();
+    }
+
+    select.addEventListener('change', function () {
+        if (this.value) handleSelection(this.value);
+    });
+
+    select.addEventListener('click', function (e) {
+        if (e.target.tagName === 'OPTION' || e.target.tagName === 'SELECT') {
+            if (select.value) handleSelection(select.value);
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!container.contains(e.target)) container.classList.remove('open');
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!container.classList.contains('open')) container.classList.add('open');
+
+            const direction = e.key === 'ArrowDown' ? 1 : -1;
+            const options = select.options;
+            let currentIndex = select.selectedIndex;
+            let nextIndex = -1;
+
+            if (direction === 1) {
+                let start = currentIndex >= 0 ? currentIndex + 1 : 0;
+                for (let i = start; i < options.length; i++) {
+                    if (options[i].style.display !== 'none') { nextIndex = i; break; }
+                }
+            } else {
+                let start = currentIndex >= 0 ? currentIndex - 1 : options.length - 1;
+                for (let i = start; i >= 0; i--) {
+                    if (options[i].style.display !== 'none') { nextIndex = i; break; }
+                }
+            }
+
+            if (nextIndex !== -1) select.selectedIndex = nextIndex;
+
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (container.classList.contains('open') && select.selectedIndex !== -1) {
+                handleSelection(select.options[select.selectedIndex].value);
+            }
+        } else if (e.key === 'Escape') {
+            container.classList.remove('open');
+        }
+    });
+
+    input.addEventListener('input', function (e) {
+        container.classList.add('open');
+        const inputText = e.target.value;
+        select.selectedIndex = -1;
+
+        updateCRSLink(prefix, type, inputText);
+        updateMetadata(prefix);
+
+        // many people writes WGS84
+        const filterArray = inputText.toLowerCase().replace('wgs84', 'wgs 84').split(' ');
+
+        function filter(text) {
+            const lower = text.toLowerCase();
+            return filterArray.every(e => lower.includes(e));
+        }
+
+        if (isSafari) {
+            select.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            for (let i = 0; i < dataArray.length; i++) {
+                if (filter(dataArray[i])) {
+                    const option = document.createElement('option');
+                    option.value = dataArray[i];
+                    option.title = dataArray[i];
+                    option.textContent = dataArray[i];
+                    fragment.appendChild(option);
+                }
+            }
+            select.appendChild(fragment);
+        } else {
+            const options = select.options;
+            for (let i = 0; i < options.length; i++) {
+                options[i].style.display = filter(options[i].textContent) ? '' : 'none';
+            }
+        }
+    });
+}
+
+async function handleTransform(proj_worker) {
+    const sourceCoords = document.getElementById('source-coordinates').value;
+
+    if (!sourceCoords.trim()) return;
+
+    const output = document.getElementById('target-coordinates');
+    output.value = '... computing ...'
+
+    const promote3D = document.getElementById('promote-3d').checked;
+    const useNetwork = document.getElementById('use-network').checked;
+
+    const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
+    let points = []
+    coordLines.forEach(line => {
+        let splitted = line.split(',');
+        if (splitted.length < 2) splitted = line.split(' ');
+        splitted = splitted.filter(n => n) // remove empty elements
+        const floats = splitted.map(e => Number.parseFloat(e));
+        points.push(floats);
+    })
+
+    const summaryBox = document.getElementById('transformation-summary');
+    summaryBox.value = '';
+    let transformer;
+    let transformed;
+    try {
+        const s = getCrsFromInput('source');
+        const t = getCrsFromInput('target')
+        transformer = await proj_worker.create_transformer_from_crs_to_crs({
+            source_crs: s,
+            target_crs: t,
+            use_network: useNetwork
+        });
+    } catch (e) {
+        output.value = 'Error:' + e;
+        return;
+    }
+    try {
+        transformed = await transformer.transform({ points: points });
+        const dp = document.getElementById(`decimal-places`).value;
+
+        let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
+        output.value = res;
+    } catch (e) {
+        output.value = 'Error:' + e;
+        return;
+    }
+    try {
+        const lastOp = await transformer.get_last_operation();
+        const date = new Date().toLocaleString();
+        summaryBox.value = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
+    } catch (e) {
+        summaryBox.value = 'Error: ' + e;
+    }
+}
+
+function getCrsAuthCode(descriptor) {
+    // anything before the space is auth:code.
+    const match = (descriptor ?? '').match(/([A-Z0-9_-]*):([.A-Z0-9_-]*)( .*|$)/i);
+    if (match) {
+        return [match[1], match[2]];
+    }
+    return ['', ''];
+}
+
+function getCrsId(descriptor) {
+    const pair = getCrsAuthCode(descriptor);
+    if (pair[0]) {
+        return `${pair[0]}:${pair[1]}`;
+    }
+    return '';
+}
+
+function getFullDescriptor(crs_list, id) {
+    const [auth, code] = (id ?? '').split(':');
+    const found = crs_list.find(e => e.auth == auth && e.code == code);
+    if (found) {
+        return `${found.auth}:${found.code} - ${found.name}`;
+    }
+    return '';
+}
+
+let proj;
+
+async function load() {
+    const appContent = document.getElementById('app-content');
+    const loader = document.getElementById('loading-indicator');
+    loader.style.display = 'block';
+
+    console.log("Downloading resources...", Date());
+
+    proj = new Proj();
+    await proj.init();
+    const info = proj.proj_info();
+    console.log(info);
+    document.getElementById('proj-version').innerText = info.version;
+    document.getElementById('proj-version').title = info.compilation_date;
+    const crs_list = proj.crs_list().filter((e, i, list) => {
+        // there are some consecutive repeated elements, like EPSG:25832
+        return i == 0 || e.auth != list[i - 1].auth || e.code != list[i - 1].code;
+    });
+    /////////////////////////
+    const bridge = new WorkerBridge();
+    const proj_worker = bridge.create_main_proxy();
+    await proj_worker.init();
+
+    const horizontalData = [];
+    const verticalData = [" - none / ellipsodial height"];
+    const PJ_TYPE_VERTICAL_CRS = 14;
+    crs_list.forEach(e => {
+        const text = `${e.auth}:${e.code} - ${e.name}`;
+        if (e.type == PJ_TYPE_VERTICAL_CRS) {
+            verticalData.push(text);
+        } else {
+            horizontalData.push(text);
+        }
+    });
+
+    setupCustomCombobox('source', 'horizontal', horizontalData, crs_list);
+    setupCustomCombobox('source', 'vertical', verticalData, crs_list);
+    setupCustomCombobox('target', 'horizontal', horizontalData, crs_list);
+    setupCustomCombobox('target', 'vertical', verticalData, crs_list);
+
+    loadFromURLParams(crs_list);
+    manageVertical('source', crs_list);
+    manageVertical('target', crs_list);
+
+
+    toggleInputs('source');
+    toggleInputs('target');
+
+    updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
+    updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));
+    updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
+    updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
+
+    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
+
+    loader.style.display = 'none';
+    appContent.classList.remove('loading-state');
+    console.log("Ready.", Date());
+};
+
+window.addEventListener('load', load);
