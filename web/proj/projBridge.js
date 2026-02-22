@@ -2,17 +2,21 @@
 
 const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
+const current_script_url = !is_node ? document.currentScript.src : ''; // just for browser
+
 class WorkerBridge {
-    constructor(worker_path = './projWorker.js') {
+    constructor(worker_path) {
         this.pending_requests = new Map();
 
         if (is_node) {
             // Node.js Worker Setup
+            worker_path = worker_path ?? `${__dirname}/projWorker.js`
             const { Worker } = require('node:worker_threads');
             this.worker = new Worker(worker_path);
             this.worker.on('message', (data) => this._handle_message({ data }));
         } else {
             // Browser Web Worker Setup
+            worker_path = worker_path ?? new URL("./projWorker.js", current_script_url);
             this.worker = new globalThis.Worker(worker_path);
             this.worker.onmessage = (e) => this._handle_message(e);
         }

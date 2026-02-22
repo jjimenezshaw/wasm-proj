@@ -1,11 +1,11 @@
 const assert = require("node:assert");
 const { describe, it, before, after, afterEach } = require('node:test');
 
-const ProjModuleFactory = require("./projModule.js");
+const ProjModuleFactory = require("../proj/projModule.js");
 globalThis.ProjModuleFactory = ProjModuleFactory;
 
-const { Proj } = require("./projFunctions.js")
-const { WorkerBridge } = require('./projBridge.js');
+const { Proj } = require("../proj/projFunctions.js")
+const { WorkerBridge } = require('../proj/projBridge.js');
 
 function similar(a, b, threshold = 1e-6, do_throw = true) {
     const r = Math.abs(a - b) < threshold;
