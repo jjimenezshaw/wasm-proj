@@ -305,6 +305,21 @@ class Proj {
         return r;
     }
 
+    /*
+    PJ_LOG_NONE = 0,
+    PJ_LOG_ERROR = 1,
+    PJ_LOG_DEBUG = 2,
+    PJ_LOG_TRACE = 3,
+    PJ_LOG_TELL = 4,
+    */
+    log_level(level) {
+        if (level === undefined || level === null)
+            level = 4;
+        if (level < 0 || level > 4)
+            throw new Error(`Invalid PROJ log level [${level}]`);
+        return this.proj._proj_log_level(this.ctx, level);
+    }
+
     // equivalent to projinfo CLI https://proj.org/en/stable/apps/projinfo.html
     // args: { args, use_network }
     // return: { rc, msg }
@@ -398,9 +413,32 @@ class Proj {
             const target_crs = keep.string(args?.target_crs);
             const area = 0;
 
+            let P_src = keep.call("_proj_create", this.ctx, source_crs);
+            let P_tgt = keep.call("_proj_create", this.ctx, target_crs);
+            if (args?.promote_to_3D) {
+                P_src = keep.call("_proj_crs_promote_to_3D", this.ctx, 0, P_src);
+                P_tgt = keep.call("_proj_crs_promote_to_3D", this.ctx, 0, P_tgt);
+            }
+            const process_epoch = (P, epoch, name) => {
+                let P_out = P;
+                if (epoch !== null && epoch !== undefined && !isNaN(epoch)) {
+                    if (typeof epoch !== "number") {
+                        throw new Error(`Epoch ${epoch} must be a float`)
+                    }
+                    P_out = keep.call("_proj_coordinate_metadata_create", this.ctx, P, epoch);
+                    if (P_out == 0) {
+                        P_out = P;
+                        console.error(`Apparently ${name} is not dynamic. Do not use an epoch.`)
+                    }
+                }
+                return P_out;
+            }
+            P_src = process_epoch(P_src, args?.source_epoch, args?.source_crs);
+            P_tgt = process_epoch(P_tgt, args?.target_epoch, args?.target_crs);
+
             const ctx = this.proj._proj_context_clone(this.ctx);
             this.proj._proj_context_set_enable_network(ctx, args.use_network);
-            const P = this.proj._proj_create_crs_to_crs(ctx, source_crs, target_crs, area);
+            const P = this.proj._proj_create_crs_to_crs_from_pj(ctx, P_src, P_tgt, area, 0);
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
                 throw new Error("proj_create_crs_to_crs returned NULL.");
