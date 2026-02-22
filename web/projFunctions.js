@@ -305,6 +305,21 @@ class Proj {
         return r;
     }
 
+    /*
+    PJ_LOG_NONE = 0,
+    PJ_LOG_ERROR = 1,
+    PJ_LOG_DEBUG = 2,
+    PJ_LOG_TRACE = 3,
+    PJ_LOG_TELL = 4,
+    */
+    log_level(level) {
+        if (level === undefined || level === null)
+            level = 4;
+        if (level < 0 || level > 4)
+            throw new Error (`Invalid PROJ log level [${level}]`);
+        return this.proj._proj_log_level(this.ctx, level);
+    }
+
     // equivalent to projinfo CLI https://proj.org/en/stable/apps/projinfo.html
     // args: { args, use_network }
     // return: { rc, msg }
