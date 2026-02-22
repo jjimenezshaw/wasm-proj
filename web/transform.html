@@ -112,9 +112,10 @@
                     </div>
 
                     <div class="field-inline">
+                        <input type="checkbox" id="source-epoch-enable" onchange="toggleEpoch('source')">
                         <label for="source-epoch">Epoch</label>
-                        <input type="number" step="any" id="source-epoch" placeholder="e.g., 2020.53"
-                            style="width: 7rem;" oninput="validateForm()">
+                        <input type="number" step="any" id="source-epoch" disabled style="width: 7rem;"
+                            oninput="validateForm()">
                         <span class="helper-text">(Only for dynamic datums)</span>
                     </div>
 
@@ -213,9 +214,10 @@
                     </div>
 
                     <div class="field-inline">
+                        <input type="checkbox" id="target-epoch-enable" onchange="toggleEpoch('target')">
                         <label for="target-epoch">Epoch</label>
-                        <input type="number" step="any" id="target-epoch" placeholder="e.g., 2020.53"
-                            style="width: 7rem;" oninput="validateForm()">
+                        <input type="number" step="any" id="target-epoch" disabled style="width: 7rem;"
+                            oninput="validateForm()">
                         <span class="helper-text">(Only for dynamic datums)</span>
                     </div>
 

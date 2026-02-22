@@ -86,13 +86,22 @@ function loadFromURLParams(crs_list) {
     document.getElementById('source-horizontal-input').value = getFullDescriptor(crs_list, params.get('sh')) ?? '';
     document.getElementById('source-vertical-input').value = getFullDescriptor(crs_list, params.get('sv')) ?? '';
     document.getElementById('source-freetext').value = params.get('sf') ?? '';
-    document.getElementById('source-epoch').value = params.get('se') ?? '';
 
     document.getElementById('target-horizontal-input').value = getFullDescriptor(crs_list, params.get('th')) ?? '';
     document.getElementById('target-vertical-input').value = getFullDescriptor(crs_list, params.get('tv')) ?? '';
     document.getElementById('target-freetext').value = params.get('tf') ?? '';
-    document.getElementById('target-epoch').value = params.get('te') ?? '';
 
+    if (params.has('se')) {
+        document.getElementById('source-epoch-enable').checked = true;
+        document.getElementById('source-epoch').disabled = false;
+        document.getElementById('source-epoch').value = params.get('se');
+    }
+
+    if (params.has('te')) {
+        document.getElementById('target-epoch-enable').checked = true;
+        document.getElementById('target-epoch').disabled = false;
+        document.getElementById('target-epoch').value = params.get('te');
+    }
     document.getElementById('source-coordinates').value = params.get('coords') ?? '';
     if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
     if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
@@ -150,6 +159,22 @@ function updateCRSLink(prefix, type, value) {
         linkElement.classList.add('disabled');
         linkElement.title = "Select a CRS to view details";
     }
+}
+
+function toggleEpoch(prefix) {
+    const checkbox = document.getElementById(`${prefix}-epoch-enable`);
+    const input = document.getElementById(`${prefix}-epoch`);
+
+    if (checkbox.checked) {
+        input.disabled = false;
+        input.placeholder = "decimal year";
+        input.focus();
+    } else {
+        input.disabled = true;
+        input.value = '';
+    }
+
+    validateForm();
 }
 
 function toggleInputs(columnPrefix) {
@@ -441,33 +466,40 @@ async function handleTransform(proj_worker) {
     let transformer;
     let transformed;
     try {
-        const s = getCrsFromInput('source');
-        const t = getCrsFromInput('target')
-        transformer = await proj_worker.create_transformer_from_crs_to_crs({
-            source_crs: s,
-            target_crs: t,
-            use_network: useNetwork
-        });
-    } catch (e) {
-        output.value = 'Error:' + e;
-        return;
-    }
-    try {
-        transformed = await transformer.transform({ points: points });
-        const dp = document.getElementById(`decimal-places`).value;
+        try {
+            const s = getCrsFromInput('source');
+            const t = getCrsFromInput('target')
+            transformer = await proj_worker.create_transformer_from_crs_to_crs({
+                source_crs: s,
+                target_crs: t,
+                source_epoch: parseFloat(document.getElementById('source-epoch').value),
+                target_epoch: parseFloat(document.getElementById('target-epoch').value),
+                use_network: useNetwork,
+                promote_to_3D: promote3D,
+            });
+        } catch (e) {
+            output.value = 'Error:' + e;
+            return;
+        }
+        try {
+            transformed = await transformer.transform({ points: points });
+            const dp = document.getElementById(`decimal-places`).value;
 
-        let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
-        output.value = res;
-    } catch (e) {
-        output.value = 'Error:' + e;
-        return;
-    }
-    try {
-        const lastOp = await transformer.get_last_operation();
-        const date = new Date().toLocaleString();
-        summaryBox.value = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
-    } catch (e) {
-        summaryBox.value = 'Error: ' + e;
+            let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
+            output.value = res;
+        } catch (e) {
+            output.value = 'Error:' + e;
+            return;
+        }
+        try {
+            const lastOp = await transformer.get_last_operation();
+            const date = new Date().toLocaleString();
+            summaryBox.value = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
+        } catch (e) {
+            summaryBox.value = 'Error: ' + e;
+        }
+    } finally {
+        if (transformer) await transformer.dispose();
     }
 }
 
