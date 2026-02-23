@@ -109,6 +109,7 @@ function loadFromURLParams(crs_list) {
     for (let id of ['source-horizontal-input', 'source-vertical-input', 'target-horizontal-input', 'target-vertical-input']) {
         document.getElementById(id).title = document.getElementById(id).value;
     }
+    return params.get('run') === '1';
 }
 
 function validateForm() {
@@ -310,7 +311,7 @@ function clearField(targetId) {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     // The ideas was to keep the user's cursor in the box
     // but Chrome is taking a long time... and it is not worth it. Just press <tab>
-    // el.focus();
+    el.focus();
 }
 
 // prefix: source, target
@@ -570,7 +571,7 @@ async function load() {
     setupCustomCombobox('target', 'horizontal', horizontalData, crs_list);
     setupCustomCombobox('target', 'vertical', verticalData, crs_list);
 
-    loadFromURLParams(crs_list);
+    const run = loadFromURLParams(crs_list);
     manageVertical('source', crs_list);
     manageVertical('target', crs_list);
 
@@ -588,6 +589,8 @@ async function load() {
     loader.style.display = 'none';
     appContent.classList.remove('loading-state');
     console.log("Ready.", Date());
+
+    if (run) handleTransform(proj_worker);
 };
 
 window.addEventListener('load', load);
