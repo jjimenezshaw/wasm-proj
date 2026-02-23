@@ -310,7 +310,7 @@ function clearField(targetId) {
     // Dispatch an input event so your validation, metadata, and URL updating functions run automatically
     el.dispatchEvent(new Event('input', { bubbles: true }));
     // The ideas was to keep the user's cursor in the box
-    // but Chrome is taking a long time... and it is not worth it. Just press <tab>
+    // but Chrome is taking a long time... let's do it for now.
     el.focus();
 }
 
@@ -441,6 +441,46 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
     });
 }
 
+function parseInputCoordinates(sourceCoords) {
+    const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
+    let points = []
+    coordLines.forEach(line => {
+        let splitted = line.split(',');
+        if (splitted.length < 2) splitted = line.split(' ');
+        splitted = splitted.filter(n => n) // remove empty elements
+        const floats = splitted.map(e => Number.parseFloat(e));
+        points.push(floats);
+    })
+    return points;
+}
+
+function showPointsInMap(proj) {
+    const coords = document.getElementById('source-coordinates').value;
+    if (!coords.trim()) {
+        console.log("No points to show in the map.")
+        return;
+    }
+
+    const points = parseInputCoordinates(coords).map(e => e.slice(0, 2));
+
+    let transformer;
+    try {
+        const s = getCrsFromInput('source');
+        const t = 'EPSG:4326';
+        transformer = proj.create_transformer_from_crs_to_crs({
+            source_crs: s, target_crs: t, promote_to_3D: false,
+        });
+        const transformed = transformer.transform({ points: points });
+        const res = transformed.map(point => point.map(e => e.toFixed(6)).join(',')).join(';');
+        const mapUrl = `./pointsinmap.html?points=${res}`;
+        window.open(mapUrl, '_blank');
+    } catch (e) {
+        if (transformer) transformer.dispose();
+        console.error('Error showing in a map:' + e);
+        return;
+    }
+}
+
 async function handleTransform(proj_worker) {
     const sourceCoords = document.getElementById('source-coordinates').value;
 
@@ -452,20 +492,11 @@ async function handleTransform(proj_worker) {
     const promote3D = document.getElementById('promote-3d').checked;
     const useNetwork = document.getElementById('use-network').checked;
 
-    const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
-    let points = []
-    coordLines.forEach(line => {
-        let splitted = line.split(',');
-        if (splitted.length < 2) splitted = line.split(' ');
-        splitted = splitted.filter(n => n) // remove empty elements
-        const floats = splitted.map(e => Number.parseFloat(e));
-        points.push(floats);
-    })
+    const points = parseInputCoordinates(sourceCoords);
 
     const summaryBox = document.getElementById('transformation-summary');
     summaryBox.value = '';
     let transformer;
-    let transformed;
     try {
         try {
             const s = getCrsFromInput('source');
@@ -483,7 +514,7 @@ async function handleTransform(proj_worker) {
             return;
         }
         try {
-            transformed = await transformer.transform({ points: points });
+            const transformed = await transformer.transform({ points: points });
             const dp = document.getElementById(`decimal-places`).value;
 
             let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
@@ -585,6 +616,7 @@ async function load() {
     updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
 
     document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
+    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
 
     loader.style.display = 'none';
     appContent.classList.remove('loading-state');
