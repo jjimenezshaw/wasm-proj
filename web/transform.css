@@ -219,6 +219,11 @@ label {
     background-color: #d1d5db;
 }
 
+.center-btn-container {
+    text-align: center;
+    margin-top: 0.75rem;
+}
+
 .input-with-link {
     display: flex;
     gap: 0.5rem;
