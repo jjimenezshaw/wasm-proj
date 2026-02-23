@@ -466,6 +466,7 @@ function showPointsInMap(proj) {
     let transformer;
     try {
         const s = getCrsFromInput('source');
+        if (s.length === 0) throw new Error('Select a valid source CRS')
         const t = 'EPSG:4326';
         transformer = proj.create_transformer_from_crs_to_crs({
             source_crs: s, target_crs: t, promote_to_3D: false,
@@ -475,9 +476,10 @@ function showPointsInMap(proj) {
         const mapUrl = `./pointsinmap.html?points=${res}`;
         window.open(mapUrl, '_blank');
     } catch (e) {
-        if (transformer) transformer.dispose();
-        console.error('Error showing in a map:' + e);
+        console.error('Error showing in a map: ' + e);
         return;
+    } finally {
+        if (transformer) transformer.dispose();
     }
 }
 
