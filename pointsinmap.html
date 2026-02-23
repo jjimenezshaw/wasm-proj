@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Points in map</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map">
+    </div>
+    <script>
+        const map = L.map('map').setView([0, 0], 5);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+
+        function getPointsFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const points = params.get('points');
+            const texts = points.split(';').map(e => e.split(','))
+            return texts;
+        }
+
+        async function load() {
+            const points = getPointsFromUrl();
+            const fgMarker = new L.FeatureGroup();
+            points.forEach((point, i) => {
+                if (point.length === 2) {
+                    const marker = L.marker(point);
+                    if (points.length > 1) marker.bindTooltip((i + 1).toString());
+                    fgMarker.addLayer(marker);
+                    fgMarker.addTo(map);
+                }
+            });
+            if (fgMarker.getLayers().length === 0) {
+                alert('No points added');
+                return;
+            }
+            map.fitBounds(fgMarker.getBounds(), { maxZoom: points.length === 1 ? 12 : 16 });
+        }
+        window.addEventListener('load', load);
+    </script>
+</body>
+
+</html>
