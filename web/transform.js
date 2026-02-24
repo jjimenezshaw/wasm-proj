@@ -445,8 +445,15 @@ function parseInputCoordinates(sourceCoords) {
     const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
     let points = []
     coordLines.forEach(line => {
-        let splitted = line.split(',');
-        if (splitted.length < 2) splitted = line.split(' ');
+        let splitted = []
+        for (let separator of [';', ',', '\t', ' ']) {
+            splitted = line.split(separator);
+            if (splitted.length >= 2) {
+                break;
+            }
+        }
+        // replace ',' as decimal separator with ';' column separator
+        splitted = splitted.map(e => e.replace(',', '.'));
         splitted = splitted.filter(n => n) // remove empty elements
         const floats = splitted.map(e => Number.parseFloat(e));
         points.push(floats);
