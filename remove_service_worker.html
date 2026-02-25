@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remove all service workers from this domain</title>
+</head>
+
+<body>
+    This page removes all the service workers from this domain.
+    You can check the final status in Developers tools, Application, Service Workers.
+    Sorry for any inconvenience.
+
+    <script>
+        function do_it() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    for (let registration of registrations) {
+                        // Find the actual worker object, whether it's active, waiting in the wings, or installing
+                        const worker = registration.active || registration.waiting || registration.installing;
+
+                        // Grab the exact URL/filename of the JS file, or default to 'Unknown'
+                        const scriptURL = worker ? worker.scriptURL : 'Unknown Script URL';
+
+                        let txt = `Service worker [${scriptURL}] found.`
+                        console.log(txt)
+
+                        registration.unregister().then(function (successful) {
+                            if (successful) {
+                                txt = `Successfully unregistered ghost worker file: ${scriptURL}`;
+                                console.log(txt);
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        do_it();
+    </script>
+</body>
