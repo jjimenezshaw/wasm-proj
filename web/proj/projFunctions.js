@@ -235,11 +235,12 @@ class Proj {
     // to load the WASM module
     // on_loaded: (optional) callback called when PROJ module is loaded.
     // on_failed: (optional) callback called when there is any error.
-    async init(on_loaded, on_failed, wasm_dir) {
+    async init(on_loaded, on_failed, options) {
         if (typeof ProjModuleFactory === 'undefined') {
             throw new Error(
                 "'ProjModuleFactory' is not defined. Have you loaded projModule.js?");
         }
+        let wasm_dir = options?.wasm_dir;
         const module_config = {
             // locateFile intercepts requests for the .wasm file
             locateFile: function (fileName, defaultPrefix) {
@@ -262,7 +263,9 @@ class Proj {
                     }
                 }
                 return defaultPrefix + fileName;
-            }
+            },
+            print: options?.print, // This does not work in the worker
+            printErr: options?.printErr, // This does not work in the worker
         };
         if (!this.init_promise) {
             this.init_promise = ProjModuleFactory(module_config);
