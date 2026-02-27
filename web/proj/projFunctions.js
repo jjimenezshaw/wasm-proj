@@ -435,7 +435,7 @@ class Proj {
     // Creates a coordinate transformer
     // args: {source_crs, target_crs, use_network}
     // return: new Transformer
-    create_transformer_from_crs_to_crs(args) {
+    create_transformer_from_crs(args) {
         const keep = new Keeper(this.proj);
         try {
             const source_crs = keep.string(args?.source_crs);

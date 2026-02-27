@@ -67,7 +67,7 @@
             const i = await proj.proj_info();
             console.log("work", i);
             document.getElementById("version").innerHTML = i.version + "  -  " + i.compilation_date;
-            const t = await proj.create_transformer_from_crs_to_crs({
+            const t = await proj.create_transformer_from_crs({
                 source_crs: "EPSG:4258",
                 target_crs: "EPSG:5677",
                 use_network: true

@@ -475,7 +475,7 @@ function showPointsInMap(proj) {
         const s = getCrsFromInput('source');
         if (s.length === 0) throw new Error('Select a valid source CRS')
         const t = 'EPSG:4326';
-        transformer = proj.create_transformer_from_crs_to_crs({
+        transformer = proj.create_transformer_from_crs({
             source_crs: s, target_crs: t, promote_to_3D: false,
         });
         const transformed = transformer.transform({ points: points });
@@ -510,7 +510,7 @@ async function handleTransform(proj_worker) {
         try {
             const s = getCrsFromInput('source');
             const t = getCrsFromInput('target')
-            transformer = await proj_worker.create_transformer_from_crs_to_crs({
+            transformer = await proj_worker.create_transformer_from_crs({
                 source_crs: s,
                 target_crs: t,
                 source_epoch: parseFloat(document.getElementById('source-epoch').value),

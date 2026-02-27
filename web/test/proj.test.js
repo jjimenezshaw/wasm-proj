@@ -36,7 +36,7 @@ function similar_array(a, b, threshold = 1e-6, do_throw = true) {
 async function run_performance_transformer(t, proj) {
     await t.test('performance_transformer', async (t) => {
         await t.test('10000 simple transforms', async (t) => {
-            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4326", target_crs: "EPSG:32630" });
+            const tr = await proj.create_transformer_from_crs({ source_crs: "EPSG:4326", target_crs: "EPSG:32630" });
             for (let i = 0; i < 100; i++) {
                 for (let j = 0; j < 100; j++) {
                     const p = [[10 + j * 0.01, 0 + i * 0.01]]
@@ -47,7 +47,7 @@ async function run_performance_transformer(t, proj) {
         })
 
         await t.test('one big 10000 points simple transform', async (t) => {
-            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4326", target_crs: "EPSG:32630" });
+            const tr = await proj.create_transformer_from_crs({ source_crs: "EPSG:4326", target_crs: "EPSG:32630" });
             let points = [];
             for (let i = 0; i < 100; i++) {
                 for (let j = 0; j < 100; j++) {
@@ -103,7 +103,7 @@ describe('basic tests', async (t) => {
 
     it('transform crs to crs', async (t) => {
         await t.test('simple', (t) => {
-            const tr = proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
+            const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             let p = tr.transform({ points: [[47, 8], [47, 8, 1189]] });
             assert.equal(p.length, 2);
             assert.ok(similar_array(p[0], [2642695.4201556733, 1205590.5221826336], 1e-4))
@@ -114,7 +114,7 @@ describe('basic tests', async (t) => {
 
     it('transform invalid coordinate', async (t) => {
         await t.test('simple', (t) => {
-            const tr = proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
+            const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             assert.throws(() => { tr.transform({ points: [[147, 8]] }); }, { message: /Invalid coordinate/i });
             tr.dispose();
         })
@@ -305,7 +305,7 @@ describe('worker', async (t) => {
 
     it('transform', async (t) => {
         await t.test('simple', async (t) => {
-            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
+            const tr = await proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             let p = await tr.transform({ points: [[47, 8], [47, 8, 1189]] });
             assert.equal(p.length, 2);
             assert.ok(similar_array(p[0], [2642695.4201556733, 1205590.5221826336], 1e-4))
@@ -316,7 +316,7 @@ describe('worker', async (t) => {
 
     it('transform invalid coordinate', async (t) => {
         await t.test('simple', async (t) => {
-            const tr = await proj.create_transformer_from_crs_to_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
+            const tr = await proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             assert.rejects(async () => { await tr.transform({ points: [[147, 8]] }); }, { message: /Invalid coordinate/i });
             tr.dispose();
         })
