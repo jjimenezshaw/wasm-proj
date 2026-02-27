@@ -21,6 +21,10 @@ a {
     text-decoration: none;
 }
 
+.hidden {
+    display: none;
+}
+
 .mono-space {
     font-family: ui-monospace, monospace;
 }

@@ -112,7 +112,7 @@ function loadFromURLParams(crs_list) {
     return params.get('run') === '1';
 }
 
-function validateForm() {
+function validateForm(doNotUpdateUrl = false) {
     const btn = document.getElementById('btn-transform');
     const coords = document.getElementById('source-coordinates').value.trim();
 
@@ -134,7 +134,8 @@ function validateForm() {
         btn.disabled = true;
     }
 
-    updateURLParams();
+    if (!doNotUpdateUrl)
+        updateURLParams();
 }
 
 function updateCRSLink(prefix, type, value) {
@@ -162,23 +163,26 @@ function updateCRSLink(prefix, type, value) {
     }
 }
 
-function toggleEpoch(prefix) {
-    const checkbox = document.getElementById(`${prefix}-epoch-enable`);
+function setEpochEnabled(prefix, isEnabled) {
+    const container = document.getElementById(`${prefix}-epoch-container`);
     const input = document.getElementById(`${prefix}-epoch`);
+    const helper = container.querySelector('.helper-text');
 
-    if (checkbox.checked) {
+    if (isEnabled) {
+        container.classList.remove('disabled');
         input.disabled = false;
-        input.placeholder = "decimal year";
-        input.focus();
+        helper.classList.add('hidden')
     } else {
+        container.classList.add('disabled');
         input.disabled = true;
+        helper.classList.remove('hidden')
         input.value = '';
     }
 
-    validateForm();
+    // validateForm();
 }
 
-function toggleInputs(columnPrefix) {
+function toggleInputs(columnPrefix, doNotUpdateUrl = false) {
     const selectedType = document.querySelector(`input[name="${columnPrefix}_type"]:checked`).value;
     const comboGroup = document.getElementById(`${columnPrefix}-combo-group`);
     const textGroup = document.getElementById(`${columnPrefix}-text-group`);
@@ -197,7 +201,7 @@ function toggleInputs(columnPrefix) {
         updateCRSLink(columnPrefix, 'vertical', '');
     }
     updateMetadata(columnPrefix);
-    validateForm();
+    validateForm(doNotUpdateUrl);
 }
 
 function getCrsFromInput(prefix) {
@@ -222,9 +226,17 @@ function updateMetadata(prefix) {
 
     let metadataText = "";
 
-    if (crs) {
-        const prev_log_level = proj.log_level(0); // diable PROJ log messages
-        try {
+    const prev_log_level = proj.log_level(0); // disable PROJ log messages
+    try {
+        const metadata = crs ? proj.obj_metadata({ crs: crs }) : {};
+        if (metadata.is_crs) {
+            setEpochEnabled(prefix, metadata.datum_is_dynamic);
+
+            const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
+            const PJ_TYPE_PROJECTED_CRS = 15;
+            const is_2D = metadata.type == PJ_TYPE_GEOGRAPHIC_2D_CRS || metadata.type == PJ_TYPE_PROJECTED_CRS;
+            setVerticalEnabled(prefix, is_2D);
+
             const a = proj.crs_axes({ crs: crs });
             for (let i = 0; i < a.name.length; i++) {
                 if (i > 0) metadataText += "\n";
@@ -241,9 +253,12 @@ function updateMetadata(prefix) {
                     dp.value = 4;
                 }
             }
-        } finally {
-            proj.log_level(prev_log_level);
+        } else {
+            setEpochEnabled(prefix, false);
+            setVerticalEnabled(prefix, false);
         }
+    } finally {
+        proj.log_level(prev_log_level);
     }
 
     metadataBox.value = metadataText;
@@ -266,8 +281,8 @@ function setVerticalEnabled(prefix, isEnabled) {
         updateCRSLink(prefix, 'vertical', '');
     }
 
-    // Always re-validate the form and update the URL when the state changes
-    validateForm();
+    // re-validate the form and update the URL when the state changes?
+    // validateForm();
 }
 
 function findInCrsList(authCode, crs_list) {
@@ -275,19 +290,6 @@ function findInCrsList(authCode, crs_list) {
     const ac = authCode.map(e => e.toLowerCase());
     const inList = crs_list.find(e => e.auth.toLowerCase() == ac[0] && e.code.toLowerCase() == ac[1]);
     return inList;
-}
-
-function manageVertical(prefix, crs_list) {
-    const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
-    const PJ_TYPE_PROJECTED_CRS = 15;
-
-    const horizAuthCode = getCrsAuthCode(document.getElementById(`${prefix}-horizontal-input`).value);
-    const inList = findInCrsList(horizAuthCode, crs_list);
-    if (inList && (inList.type == PJ_TYPE_GEOGRAPHIC_2D_CRS || inList.type == PJ_TYPE_PROJECTED_CRS)) {
-        setVerticalEnabled(prefix, true);
-    } else {
-        setVerticalEnabled(prefix, false);
-    }
 }
 
 function populateSelect(selectElement, dataArray) {
@@ -351,7 +353,6 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
 
         updateMetadata(prefix);
         updateCRSLink(prefix, type, val);
-        if (type == 'horizontal') manageVertical(prefix, crs_list);
         validateForm();
     }
 
@@ -612,12 +613,9 @@ async function load() {
     setupCustomCombobox('target', 'vertical', verticalData, crs_list);
 
     const run = loadFromURLParams(crs_list);
-    manageVertical('source', crs_list);
-    manageVertical('target', crs_list);
 
-
-    toggleInputs('source');
-    toggleInputs('target');
+    toggleInputs('source', true);
+    toggleInputs('target', true);
 
     updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
     updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));

@@ -502,6 +502,33 @@ class Proj {
         }
     }
 
+
+    obj_metadata(args) {
+        const keep = new Keeper(this.proj);
+        const res = {};
+        const PJ_TYPE_UNKNOWN = 0;
+        const PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME = 4;
+        const PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME = 6;
+        try {
+            const sourceCRS = keep.string(args.crs);
+            const P_crs = keep.call("_proj_create", this.ctx, sourceCRS);
+            const is_crs = !!this.proj._proj_is_crs(P_crs);
+            const P_datum = is_crs ? keep.call("_proj_crs_get_datum_forced", this.ctx, P_crs) : 0;
+            res.is_crs = is_crs;
+            res.type = this.proj._proj_get_type(P_crs);
+            res.name = P_crs ? this.proj.UTF8ToString(this.proj._proj_get_name(P_crs)) : '';
+            res.is_deprecated = !!this.proj._proj_is_deprecated(P_crs);
+            res.crs_is_derived = is_crs ? !!this.proj._proj_crs_is_derived(this.ctx, P_crs) : false;
+            res.datum_type = P_datum == 0 ? PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum)
+            res.datum_name = P_datum == 0 ? '' : this.proj.UTF8ToString(this.proj._proj_get_name(P_datum));
+            res.datum_is_dynamic = res.datum_type == PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
+                res.datum_type == PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
+            return res;
+        } finally {
+            keep.clean();
+        }
+    }
+
     // List the CRSs from proj.db
     // args: { auth_name }
     // return: [ {crs definion} ]
