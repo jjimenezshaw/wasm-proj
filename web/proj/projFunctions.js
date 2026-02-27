@@ -4,7 +4,7 @@
 class Keeper {
     constructor(proj, debug = false) {
         if (!proj) {
-            throw new Error("proj cannot be empty in class Keeper");
+            throw new Error("Empty proj ptr. Have you called Proj.init()?");
         }
 
         this.proj = proj;
@@ -221,6 +221,8 @@ class Transformer {
     }
 };
 class Proj {
+    static current_script_url = typeof document !== 'undefined' ? document.currentScript.src : ''; // just for browser
+
     constructor() {
         this.proj;
         this.ctx;
@@ -233,13 +235,37 @@ class Proj {
     // to load the WASM module
     // on_loaded: (optional) callback called when PROJ module is loaded.
     // on_failed: (optional) callback called when there is any error.
-    async init(on_loaded, on_failed) {
+    async init(on_loaded, on_failed, wasm_dir) {
         if (typeof ProjModuleFactory === 'undefined') {
             throw new Error(
                 "'ProjModuleFactory' is not defined. Have you loaded projModule.js?");
         }
+        const module_config = {
+            // locateFile intercepts requests for the .wasm file
+            locateFile: function (fileName, defaultPrefix) {
+                if (fileName.endsWith('.wasm')) {
+                    const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+                    if (is_node) {
+                        const path = require('path');
+                        return path.join(__dirname, 'wasm', fileName);
+                    } else {
+                        const is_worker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+                        if (wasm_dir) {
+                            // use this directory directly
+                        } else if (is_worker) {
+                            wasm_dir = 'wasm/';
+                        } else {
+                            const base_url = Proj.current_script_url;
+                            wasm_dir = base_url.substring(0, base_url.lastIndexOf('/') + 1) + 'wasm/';
+                        }
+                        return wasm_dir + fileName;
+                    }
+                }
+                return defaultPrefix + fileName;
+            }
+        };
         if (!this.init_promise) {
-            this.init_promise = ProjModuleFactory();
+            this.init_promise = ProjModuleFactory(module_config);
         }
         return this.init_promise
             .then(module => {

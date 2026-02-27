@@ -1,12 +1,12 @@
 'use strict'
 
-const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
-const current_script_url = !is_node ? document.currentScript.src : ''; // just for browser
 
 class WorkerBridge {
+    static current_script_url = typeof document !== 'undefined' ? document.currentScript.src : ''; // just for browser
     constructor(worker_path) {
         this.pending_requests = new Map();
+        const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
         if (is_node) {
             // Node.js Worker Setup
@@ -16,7 +16,7 @@ class WorkerBridge {
             this.worker.on('message', (data) => this._handle_message({ data }));
         } else {
             // Browser Web Worker Setup
-            worker_path = worker_path ?? new URL("./projWorker.js", current_script_url);
+            worker_path = worker_path ?? new URL("./projWorker.js", WorkerBridge.current_script_url);
             this.worker = new globalThis.Worker(worker_path);
             this.worker.onmessage = (e) => this._handle_message(e);
         }

@@ -12,12 +12,12 @@ async function register_proj(registry) {
     try {
         console.log("initializing Proj in worker")
         if (is_node) {
-            const ProjModuleFactory = require("./projModule.js");
+            const ProjModuleFactory = require("./wasm/projModule.js");
             globalThis.ProjModuleFactory = ProjModuleFactory;
             const functions = require("./projFunctions.js");
             globalThis.Proj = functions.Proj;
         } else {
-            importScripts("./projModule.js");
+            importScripts("./wasm/projModule.js");
             importScripts("./projFunctions.js");
         }
         const root = new Proj();

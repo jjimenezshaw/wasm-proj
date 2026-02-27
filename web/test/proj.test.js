@@ -1,7 +1,7 @@
 const assert = require("node:assert");
 const { describe, it, before, after, afterEach } = require('node:test');
 
-const ProjModuleFactory = require("../proj/projModule.js");
+const ProjModuleFactory = require("../proj/wasm/projModule.js");
 globalThis.ProjModuleFactory = ProjModuleFactory;
 
 const { Proj } = require("../proj/projFunctions.js")

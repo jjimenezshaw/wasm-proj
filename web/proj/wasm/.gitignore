@@ -1,0 +1,10 @@
+# This directory may contain the files
+# projModule.js
+# projModule.wasm
+# that are not included in the git repo.
+# Compile them or better, get them from PROJ.
+
+# inspired in https://stackoverflow.com/questions/115983/how-do-i-add-an-empty-directory-to-a-git-repository
+
+projModule.js
+projModule.wasm
