@@ -12,12 +12,12 @@ async function copyToClipboard(targetId, btnElement) {
         // Visual feedback
         const originalText = btnElement.innerText;
         btnElement.innerText = 'Copied!';
-        btnElement.style.backgroundColor = '#d1fae5'; // subtle green success color
+        btnElement.classList.add('btn-copied');
 
         // Revert back after 2 seconds
         setTimeout(() => {
             btnElement.innerText = originalText;
-            btnElement.style.backgroundColor = '';
+            btnElement.classList.remove('btn-copied');
         }, 2000);
 
     } catch (err) {
@@ -91,7 +91,7 @@ function run(proj) {
 async function load() {
     const appContent = document.getElementById('app-content');
     const loader = document.getElementById('loading-indicator');
-    loader.style.display = 'block';
+    loader.classList.remove('hidden');
 
     console.log("Downloading resources...", Date());
 
@@ -109,7 +109,7 @@ async function load() {
 
     document.getElementById('btn-transform').addEventListener('click', () => run(proj));
 
-    loader.style.display = 'none';
+    loader.classList.add('hidden');
     appContent.classList.remove('loading-state');
     console.log("Ready.", Date());
 };

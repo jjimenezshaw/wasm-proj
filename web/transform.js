@@ -5,26 +5,19 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 async function copyToClipboard(targetId, btnElement) {
     const element = document.getElementById(targetId);
-
     const textToCopy = element.value !== undefined ? element.value : element.innerText;
-
-    // Don't do anything if the text area is empty
     if (!textToCopy.trim()) return;
 
     try {
         await navigator.clipboard.writeText(textToCopy);
-
-        // Visual feedback
         const originalText = btnElement.innerText;
         btnElement.innerText = 'Copied!';
-        btnElement.style.backgroundColor = '#d1fae5'; // subtle green success color
+        btnElement.classList.add('btn-copied');
 
-        // Revert back after 2 seconds
         setTimeout(() => {
             btnElement.innerText = originalText;
-            btnElement.style.backgroundColor = '';
+            btnElement.classList.remove('btn-copied');
         }, 2000);
-
     } catch (err) {
         console.error('Failed to copy text: ', err);
         alert('Could not copy to clipboard. Please check browser permissions.');
@@ -188,12 +181,12 @@ function toggleInputs(columnPrefix, doNotUpdateUrl = false) {
     const textGroup = document.getElementById(`${columnPrefix}-text-group`);
 
     if (selectedType === 'combo') {
-        comboGroup.style.display = 'block';
-        textGroup.style.display = 'none';
+        comboGroup.classList.remove('hidden');
+        textGroup.classList.add('hidden');
         document.getElementById(`${columnPrefix}-freetext`).value = '';
     } else {
-        comboGroup.style.display = 'none';
-        textGroup.style.display = 'block';
+        comboGroup.classList.add('hidden');
+        textGroup.classList.remove('hidden');
         document.getElementById(`${columnPrefix}-horizontal-input`).value = '';
         document.getElementById(`${columnPrefix}-vertical-input`).value = '';
 
@@ -383,12 +376,12 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
             if (direction === 1) {
                 let start = currentIndex >= 0 ? currentIndex + 1 : 0;
                 for (let i = start; i < options.length; i++) {
-                    if (options[i].style.display !== 'none') { nextIndex = i; break; }
+                    if (!options[i].classList.contains('hidden')) { nextIndex = i; break; }
                 }
             } else {
                 let start = currentIndex >= 0 ? currentIndex - 1 : options.length - 1;
                 for (let i = start; i >= 0; i--) {
-                    if (options[i].style.display !== 'none') { nextIndex = i; break; }
+                    if (!options[i].classList.contains('hidden')) { nextIndex = i; break; }
                 }
             }
 
@@ -436,7 +429,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         } else {
             const options = select.options;
             for (let i = 0; i < options.length; i++) {
-                options[i].style.display = filter(options[i].textContent) ? '' : 'none';
+                options[i].classList.toggle('hidden', !filter(options[i].textContent));
             }
         }
     });
@@ -576,7 +569,7 @@ let proj;
 async function load() {
     const appContent = document.getElementById('app-content');
     const loader = document.getElementById('loading-indicator');
-    loader.style.display = 'block';
+    loader.classList.remove('hidden');
 
     console.log("Downloading resources...", Date());
 
@@ -625,7 +618,7 @@ async function load() {
     document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
     document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
 
-    loader.style.display = 'none';
+    loader.classList.add('hidden');
     appContent.classList.remove('loading-state');
     console.log("Ready.", Date());
 
