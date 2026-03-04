@@ -101,7 +101,7 @@ describe('basic tests', async (t) => {
         });
     });
 
-    it('transform crs to crs', async (t) => {
+    it('transform crs', async (t) => {
         await t.test('simple', (t) => {
             const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             let p = tr.transform({ points: [[47, 8], [47, 8, 1189]] });
@@ -109,6 +109,33 @@ describe('basic tests', async (t) => {
             assert.ok(similar_array(p[0], [2642695.4201556733, 1205590.5221826336], 1e-4))
             assert.ok(similar_array(p[1], [2642695.405662641, 1205590.4946125143, 1189], 1e-4))
             tr.dispose();
+        })
+    })
+
+    it('transform crs always_xy input', async (t) => {
+        await t.test('simple', (t) => {
+            const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056", always_xy: true });
+            let p = tr.transform({ points: [[8, 47]] });
+            assert.equal(p.length, 1);
+            assert.ok(similar_array(p[0], [2642695.4201556733, 1205590.5221826336], 1e-4))
+            tr.dispose();
+        })
+    })
+
+    it('transform crs always_xy compare', async (t) => {
+        await t.test('simple', (t) => {
+            const tr1 = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:3044", always_xy: true });
+            const tr2 = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:25832", always_xy: false });
+            const tr3 = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:25832" });
+            let p1 = tr1.transform({ points: [[8, 47]] });
+            let p2 = tr2.transform({ points: [[47, 8]] });
+            let p3 = tr3.transform({ points: [[47, 8]] });
+            assert.equal(p1.length, 1);
+            assert.ok(similar_array(p1[0], p2[0], 1e-4))
+            assert.ok(similar_array(p1[0], p3[0], 1e-4))
+            tr1.dispose();
+            tr2.dispose();
+            tr3.dispose();
         })
     })
 

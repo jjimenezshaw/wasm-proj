@@ -92,13 +92,11 @@ function loadFromURLParams(crs_list) {
     document.getElementById('target-freetext').value = params.get('tf') ?? '';
 
     if (params.has('se')) {
-        document.getElementById('source-epoch-enable').checked = true;
         document.getElementById('source-epoch').disabled = false;
         document.getElementById('source-epoch').value = params.get('se');
     }
 
     if (params.has('te')) {
-        document.getElementById('target-epoch-enable').checked = true;
         document.getElementById('target-epoch').disabled = false;
         document.getElementById('target-epoch').value = params.get('te');
     }

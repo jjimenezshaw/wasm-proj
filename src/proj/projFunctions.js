@@ -118,6 +118,9 @@ function struct_ptr_to_dict(proj, struct_ptr, params) {
     return res;
 }
 
+/** Class represeting a coordinate Transformer. Do not forget to call dispose() after usage.
+ * It must be created with the methods in class Proj.
+ */
 class Transformer {
     constructor(proj, ctx, P) {
         this.proj = proj;
@@ -220,9 +223,12 @@ class Transformer {
         }
     }
 };
+
+/** Class for the general PROJ wasm wrapper. Do not forget to call init() */
 class Proj {
     static current_script_url = typeof document !== 'undefined' ? document.currentScript.src : ''; // just for browser
 
+    /** Created the Proj object */
     constructor() {
         this.proj;
         this.ctx;
@@ -231,10 +237,31 @@ class Proj {
         this.geod_geodesic_ptr; // GRS80. Here for performance.
     }
 
-    // After construction call the asynchronous method "init"
-    // to load the WASM module
-    // on_loaded: (optional) callback called when PROJ module is loaded.
-    // on_failed: (optional) callback called when there is any error.
+    /**
+     * callback for loaded init
+     * @callback on_load_callback
+     * @param {module} module
+     */
+
+    /**
+     * callback for failed init
+     * @callback on_failed_callback
+     * @param {Error} error
+     */
+
+    /**
+     * callback for log
+     * @callback printer
+     * @param {string} text
+     */
+
+    /** initializes the Proj object after construction *asynchronously*
+     * calling the proper WASM module factory
+     * @param {on_load_callback} [on_loaded]
+     * @param {on_failed_callback} [on_failed]
+     * @param {{wasm_dir: string, print: printer, printErr: printer}} [options]
+     * @returns {Promise}
+     */
     async init(on_loaded, on_failed, options) {
         if (typeof ProjModuleFactory === 'undefined') {
             throw new Error(
@@ -432,9 +459,20 @@ class Proj {
         return res;
     }
 
-    // Creates a coordinate transformer
-    // args: {source_crs, target_crs, use_network}
-    // return: new Transformer
+    /**
+     * Creates a coordinate transformer from CRS definition
+     * @example
+     * create_transformer_from_crs({source_crs: 'EPSG:4326', target_crs: 'EPSG:2056'})
+     * @param {object} args
+     * @param {string} args.source_crs
+     * @param {string} args.target_crs
+     * @param {number} [args.source_epoch] - Only for dynamic datums
+     * @param {number} [args.target_epoch] - Only for dynamic datums
+     * @param {boolean} [args.promote_to_3D] - Use 3D transformations even for 2D systems
+     * @param {boolean} [args.use_network] - use network when grid files are needed. Must run in a Web Worker
+     * @param {boolean} [args.always_xy] - use lon-lat and easting-northing for input and output, regardless the CRS definitions.
+     * @returns {Transformer}
+     */
     create_transformer_from_crs(args) {
         const keep = new Keeper(this.proj);
         try {
@@ -467,10 +505,19 @@ class Proj {
 
             const ctx = this.proj._proj_context_clone(this.ctx);
             this.proj._proj_context_set_enable_network(ctx, args.use_network);
-            const P = this.proj._proj_create_crs_to_crs_from_pj(ctx, P_src, P_tgt, area, 0);
+            let P = this.proj._proj_create_crs_to_crs_from_pj(ctx, P_src, P_tgt, area, 0);
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
-                throw new Error("proj_create_crs_to_crs returned NULL.");
+                throw new Error("proj_create_crs_to_crs_from_pj returned NULL.");
+            }
+            if (args.always_xy) {
+                const Q = this.proj._proj_normalize_for_visualization(ctx, P);
+                this.proj._proj_destroy(P);
+                P = Q;
+                if (P === 0) {
+                    this.proj._proj_destroy(ctx);
+                    throw new Error("proj_normalize_for_visualization returned NULL.");
+                }
             }
             // the ownership of P and ctx is transfered to the transformer
             const tr = new Transformer(this.proj, ctx, P);
@@ -480,19 +527,33 @@ class Proj {
         }
     }
 
-    // Creates a coordinate transformer
-    // args: {pipeline, use_network}
-    // return: new Transformer
+    /**
+     * Creates a coordinate transformer from a single string
+     * @param {object} args
+     * @param {string} args.pipeline
+     * @param {boolean} [args.use_network] - use network when grid files are needed. Must run in a Web Worker
+     * @param {boolean} [args.always_xy] - use lon-lat and easting-northing for input and output, regardless the CRS definitions.
+     * @returns {Transformer}
+     */
     create_transformer_from_pipeline(args) {
         const keep = new Keeper(this.proj);
         try {
             const pipeline = keep.string(args?.pipeline);
             const ctx = this.proj._proj_context_clone(this.ctx);
             this.proj._proj_context_set_enable_network(ctx, args.use_network ? 1 : 0);
-            const P = this.proj._proj_create(ctx, pipeline);
+            let P = this.proj._proj_create(ctx, pipeline);
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
                 throw new Error("proj_create returned NULL.");
+            }
+            if (args.always_xy) {
+                const Q = this.proj._proj_normalize_for_visualization(ctx, P);
+                this.proj._proj_destroy(P);
+                P = Q;
+                if (P === 0) {
+                    this.proj._proj_destroy(ctx);
+                    throw new Error("proj_normalize_for_visualization returned NULL.");
+                }
             }
             // the ownership of P and ctx is transfered to the transformer
             const tr = new Transformer(this.proj, ctx, P);
@@ -529,9 +590,12 @@ class Proj {
         }
     }
 
-    // List the CRSs from proj.db
-    // args: { auth_name }
-    // return: [ {crs definion} ]
+    /**
+     * List the CRSs from proj.db
+     * @param {object} args
+     * @param {number} [args.auth_name] - Authority name. If empty, all authorities are used
+     * @returns {list}
+     */
     crs_list(args) {
         const keep = new Keeper(this.proj);
         try {
