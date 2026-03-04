@@ -4,13 +4,15 @@
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 async function copyToClipboard(targetId, btnElement) {
-    const textArea = document.getElementById(targetId);
+    const element = document.getElementById(targetId);
+
+    const textToCopy = element.value !== undefined ? element.value : element.innerText;
 
     // Don't do anything if the text area is empty
-    if (!textArea.value.trim()) return;
+    if (!textToCopy.trim()) return;
 
     try {
-        await navigator.clipboard.writeText(textArea.value);
+        await navigator.clipboard.writeText(textToCopy);
 
         // Visual feedback
         const originalText = btnElement.innerText;
@@ -503,7 +505,7 @@ async function handleTransform(proj_worker) {
     const points = parseInputCoordinates(sourceCoords);
 
     const summaryBox = document.getElementById('transformation-summary');
-    summaryBox.value = '';
+    summaryBox.innerText = '';
     let transformer;
     try {
         try {
@@ -534,9 +536,9 @@ async function handleTransform(proj_worker) {
         try {
             const lastOp = await transformer.get_last_operation();
             const date = new Date().toLocaleString();
-            summaryBox.value = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
+            summaryBox.innerText = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
         } catch (e) {
-            summaryBox.value = 'Error: ' + e;
+            summaryBox.innerText = 'Error: ' + e;
         }
     } finally {
         if (transformer) await transformer.dispose();

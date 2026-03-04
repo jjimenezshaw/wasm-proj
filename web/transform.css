@@ -476,6 +476,20 @@ select.combo-select option:checked {
     padding-bottom: 0;
 }
 
+.summary-box {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--readonly-bg);
+    color: #374151;
+    font-size: 0.9rem;
+    min-height: 60px;
+    box-sizing: border-box;
+    white-space: pre-wrap; /* Keeps the \n line breaks */
+    line-height: 1.4;
+}
+
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
