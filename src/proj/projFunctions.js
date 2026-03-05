@@ -131,6 +131,7 @@ class Transformer {
         if (use_network && !is_worker) {
             console.warn("Using a PROJ transformer in the main thread with 'use_network' may not work as expected.")
         }
+        this.last_op_inverse = false;
     }
 
     dispose() {
@@ -141,12 +142,26 @@ class Transformer {
         this.proj = undefined;
     }
 
+    angular_input(args) {
+        return this.proj._proj_angular_input(this.P, args?.inverse ? -1 : 1);
+    }
+    degree_input(args) {
+        return this.proj._proj_degree_input(this.P, args?.inverse ? -1 : 1);
+    }
+    angular_output(args) {
+        return this.proj._proj_angular_output(this.P, args?.inverse ? -1 : 1);
+    }
+    degree_output(args) {
+        return this.proj._proj_degree_output(this.P, args?.inverse ? -1 : 1);
+    }
+
     transform(args) {
         const keep = new Keeper(this.proj);
         try {
             const points = args.points;
             const number_of_points = points.length;
             const inverse = args.inverse;
+            this.last_op_inverse = inverse;
 
             let coordPtr = keep.malloc(32 * number_of_points);
             const coordView = new Float64Array(this.proj.HEAPF64.buffer, coordPtr, 4 * number_of_points);
@@ -184,7 +199,10 @@ class Transformer {
         try {
             // https://proj.org/en/stable/development/reference/datatypes.html#c.PJ_PROJ_INFO
             const struct_ptr = keep.malloc(64); // bigger just in case
-            const operation_ptr = keep.call("_proj_trans_get_last_used_operation", this.P);
+            let operation_ptr = keep.call("_proj_trans_get_last_used_operation", this.P);
+            if (this.last_op_inverse) {
+                operation_ptr = keep.call("_proj_coordoperation_create_inverse", this.ctx, operation_ptr);
+            }
 
             this.proj._proj_pj_info(struct_ptr, operation_ptr);
             const idPtr = this.proj.getValue(struct_ptr + 0, 'i32');
@@ -532,7 +550,6 @@ class Proj {
      * @param {object} args
      * @param {string} args.pipeline
      * @param {boolean} [args.use_network] - use network when grid files are needed. Must run in a Web Worker
-     * @param {boolean} [args.always_xy] - use lon-lat and easting-northing for input and output, regardless the CRS definitions.
      * @returns {Transformer}
      */
     create_transformer_from_pipeline(args) {
@@ -545,15 +562,6 @@ class Proj {
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
                 throw new Error("proj_create returned NULL.");
-            }
-            if (args.always_xy) {
-                const Q = this.proj._proj_normalize_for_visualization(ctx, P);
-                this.proj._proj_destroy(P);
-                P = Q;
-                if (P === 0) {
-                    this.proj._proj_destroy(ctx);
-                    throw new Error("proj_normalize_for_visualization returned NULL.");
-                }
             }
             // the ownership of P and ctx is transfered to the transformer
             const tr = new Transformer(this.proj, ctx, P);
