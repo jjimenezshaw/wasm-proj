@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Transformation Tool</title>
+
+    <link rel="stylesheet" href="./global.css" />
+    <link rel="stylesheet" href="./transform_pipeline.css" />
+
+    <script src="./proj/wasm/projModule.js"></script>
+    <script src="./proj/projFunctions.js"></script>
+    <script src="./proj/projBridge.js"></script>
+
+    <script src="./transform_pipeline.js"></script>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <div id="loading-indicator" class="hidden">&#8987;</div>
+
+        <header class="app-header">
+            <div class="header-title">Wasm PROJ - transform pipeline</div>
+            <nav class="header-nav">
+                <a href="./transform.html">CRS transform</a>
+                <a href="./transform_pipeline.html">Pipeline transform</a>
+                <a href="./projinfo.html">projinfo</a>
+                <a href="./">Home</a>
+            </nav>
+        </header>
+
+        <div id="app-content" class="loading-state">
+            <div class="full-width-section">
+                <h2>Coordinate Pipeline Transformation with Wasm PROJ</h2>
+                <p class="description-text">
+                    Set the pipeline or definition of your transformation. More info in 
+                    <a href="https://proj.org/operations/index.html" target="_blank">PROJ coordinate operations</a>,
+                    specially in <a href="https://proj.org/operations/pipeline.html">the pipeline operator</a>.
+                    <br>
+                    Enter your coordinates below to perform the transformation.
+                    Implemented with <a href="https://proj.org" target="_blank">PROJ</a> <span id="proj-version"></span>
+                </p>
+            </div>
+
+            <div class="container">
+                <div class="column">
+                    <div class="flex-header">
+                        <div class="checkbox-group">
+
+                            <label class="checkbox-label"
+                                title="Enables querying with PROJ_NETWORK=ON. The results may differ in some cases.">
+                                <input type="checkbox" id="use-network" checked onchange="validateForm()"> Enable network
+                            </label>
+                            <label class="checkbox-label" title="Performs the inverse transformation.">
+                                <input type="checkbox" id="inverse" onchange="validateForm()"> Inverse
+                            </label>
+                        </div>
+                        <button class="btn-small" onclick="document.getElementById('pipeline-file').click()">
+                            Load File</button>
+                        <input type="file" id="pipeline-file" class="hidden"
+                            onchange="handleFileLoad(event, 'pipeline-text')">
+                    </div>
+                    <div class="textarea-container">
+                        <button class="clear-btn" onclick="clearField('pipeline-text')"
+                            title="Clear field">&times;</button>
+                        <textarea id="pipeline-text" class="mono-space" class="freetext-text" spellcheck="false"
+                            placeholder="Type here the transformation definition"></textarea>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="container">
+                <div class="column">
+                    <h2>Input</h2>
+
+                    <div class="field">
+                        <div class="flex-header">
+                            <label>Input Coordinates <span class="required">*</span></label>
+                            <button class="btn-small" onclick="document.getElementById('coords-file').click()">
+                                Load File</button>
+                            <input type="file" id="coords-file" class="hidden"
+                                onchange="handleFileLoad(event, 'source-coordinates')">
+                        </div>
+                        <div class="textarea-container">
+                            <button class="clear-btn" onclick="clearField('source-coordinates')"
+                                title="Clear field">&times;</button>
+                            <textarea id="source-coordinates" class="mono-space min-h-80"
+                                placeholder="Enter coordinates here (e.g., X Y Z)..."
+                                oninput="validateForm()"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <h2>Output</h2>
+
+                    <div class="field-inline">
+                        <label for="decimal-places">Horizontal decimal places</label>
+                        <input type="number" id="decimal-places" min="1" max="12" value="4" class="w-3rem">
+                        <span class="helper-text"></span>
+                    </div>
+
+                    <div class="field">
+                        <div class="flex-header">
+                            <label>Transformed Coordinates</label>
+                            <button class="btn-small"
+                                onclick="copyToClipboard('target-coordinates', this)">Copy</button>
+                        </div>
+                        <textarea id="target-coordinates" class="mono-space min-h-80" readonly
+                            placeholder="Transformed results will appear here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-area">
+                <button id="btn-transform" class="btn-transform" disabled>Transform
+                    Coordinates</button>
+            </div>
+
+            <div class="full-width-section" id="summary-section">
+                <div class="flex-header summary-header">
+                    <h3>Last Operation Summary</h3>
+                    <button class="btn-small" onclick="copyToClipboard('transformation-summary', this)">Copy</button>
+                </div>
+                <div id="transformation-summary" class="summary-box mono-space">Summary details will appear after
+                    transformation...
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
