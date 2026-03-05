@@ -225,11 +225,6 @@ function updateMetadata(prefix) {
         if (metadata.is_crs) {
             setEpochEnabled(prefix, metadata.datum_is_dynamic);
 
-            const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
-            const PJ_TYPE_PROJECTED_CRS = 15;
-            const is_2D = metadata.type == PJ_TYPE_GEOGRAPHIC_2D_CRS || metadata.type == PJ_TYPE_PROJECTED_CRS;
-            setVerticalEnabled(prefix, is_2D);
-
             const a = proj.crs_axes({ crs: crs });
             for (let i = 0; i < a.name.length; i++) {
                 if (i > 0) metadataText += "\n";
@@ -248,7 +243,6 @@ function updateMetadata(prefix) {
             }
         } else {
             setEpochEnabled(prefix, false);
-            setVerticalEnabled(prefix, false);
         }
     } finally {
         proj.log_level(prev_log_level);
@@ -309,6 +303,19 @@ function clearField(targetId) {
     el.focus();
 }
 
+function manageVertical(prefix, crs_list) {
+    const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
+    const PJ_TYPE_PROJECTED_CRS = 15;
+
+    const horizAuthCode = getCrsAuthCode(document.getElementById(`${prefix}-horizontal-input`).value);
+    const inList = findInCrsList(horizAuthCode, crs_list);
+    if (inList && (inList.type == PJ_TYPE_GEOGRAPHIC_2D_CRS || inList.type == PJ_TYPE_PROJECTED_CRS)) {
+        setVerticalEnabled(prefix, true);
+    } else {
+        setVerticalEnabled(prefix, false);
+    }
+}
+
 // prefix: source, target
 // type: horizontal, vertical
 function setupCustomCombobox(prefix, type, dataArray, crs_list) {
@@ -346,6 +353,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
 
         updateMetadata(prefix);
         updateCRSLink(prefix, type, val);
+        if (type == 'horizontal') manageVertical(prefix, crs_list);
         validateForm();
     }
 
@@ -606,6 +614,9 @@ async function load() {
     setupCustomCombobox('target', 'vertical', verticalData, crs_list);
 
     const run = loadFromURLParams(crs_list);
+
+    manageVertical('source', crs_list);
+    manageVertical('target', crs_list);
 
     toggleInputs('source', true);
     toggleInputs('target', true);
