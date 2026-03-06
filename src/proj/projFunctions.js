@@ -481,7 +481,7 @@ class Proj {
      * Creates a coordinate transformer from CRS definition
      * @example
      * create_transformer_from_crs({source_crs: 'EPSG:4326', target_crs: 'EPSG:2056'})
-     * @param {object} args
+     * @param {Object} args
      * @param {string} args.source_crs
      * @param {string} args.target_crs
      * @param {number} [args.source_epoch] - Only for dynamic datums
@@ -547,7 +547,7 @@ class Proj {
 
     /**
      * Creates a coordinate transformer from a single string
-     * @param {object} args
+     * @param {Object} args
      * @param {string} args.pipeline
      * @param {boolean} [args.use_network] - use network when grid files are needed. Must run in a Web Worker
      * @returns {Transformer}
@@ -571,27 +571,65 @@ class Proj {
         }
     }
 
+    /**
+     * @typedef {Object} crs_metadata_result
+     * @property {boolean} is_crs - Indicates if the input was really a CRS definition.
+     * @property {number} type - PROJ type
+     * @property {string} name - Name of the CRS
+     * @property {boolean} is_deprecated - Indicates if the CRS is deprecated in the catalog
+     * @property {boolean} is_derived - Indicates if the CRS is derived
+     */
+    /**
+     * Gets metadata of a CRS
+     * @param {Object} args
+     * @param {string} args.crs - definition of the CRS
+     * @returns {crs_metadata_result} the metadata
+     */
+    crs_metadata(args) {
+        const keep = new Keeper(this.proj);
+        const res = {};
+        try {
+            const crs = keep.string(args?.crs);
+            const P_crs = keep.call("_proj_create", this.ctx, crs);
+            const is_crs = !!this.proj._proj_is_crs(P_crs);
+            res.is_crs = is_crs;
+            res.type = this.proj._proj_get_type(P_crs);
+            res.name = P_crs ? this.proj.UTF8ToString(this.proj._proj_get_name(P_crs)) : '';
+            res.is_deprecated = !!this.proj._proj_is_deprecated(P_crs);
+            res.is_derived = is_crs ? !!this.proj._proj_crs_is_derived(this.ctx, P_crs) : false;
+            return res;
+        } finally {
+            keep.clean();
+        }
+    }
 
-    obj_metadata(args) {
+    /**
+     * @typedef {Object} datum_metadata_result
+     * @property {number} type - PROJ type of the CRS datum
+     * @property {string} name - Name of the CRS datum
+     * @property {boolean} is_dynamic - Indicates if the CRS datum is dynamic
+     */
+    /**
+     * Gets metadata of the datum of a CRS
+     * @param {Object} args
+     * @param {string} args.crs - definition of the CRS
+     * @returns {datum_metadata_result} the metadata
+     */
+    datum_metadata(args) {
         const keep = new Keeper(this.proj);
         const res = {};
         const PJ_TYPE_UNKNOWN = 0;
         const PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME = 4;
         const PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME = 6;
         try {
-            const sourceCRS = keep.string(args.crs);
-            const P_crs = keep.call("_proj_create", this.ctx, sourceCRS);
+            const crs = keep.string(args?.crs);
+            const P_crs = keep.call("_proj_create", this.ctx, crs);
             const is_crs = !!this.proj._proj_is_crs(P_crs);
             const P_datum = is_crs ? keep.call("_proj_crs_get_datum_forced", this.ctx, P_crs) : 0;
-            res.is_crs = is_crs;
-            res.type = this.proj._proj_get_type(P_crs);
-            res.name = P_crs ? this.proj.UTF8ToString(this.proj._proj_get_name(P_crs)) : '';
-            res.is_deprecated = !!this.proj._proj_is_deprecated(P_crs);
-            res.crs_is_derived = is_crs ? !!this.proj._proj_crs_is_derived(this.ctx, P_crs) : false;
-            res.datum_type = P_datum == 0 ? PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum)
-            res.datum_name = P_datum == 0 ? '' : this.proj.UTF8ToString(this.proj._proj_get_name(P_datum));
-            res.datum_is_dynamic = res.datum_type == PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
-                res.datum_type == PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
+            res.type = P_datum == 0 ? PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum)
+            res.name = P_datum == 0 ? '' : this.proj.UTF8ToString(this.proj._proj_get_name(P_datum));
+            res.is_dynamic = res.type == PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
+                res.type == PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
             return res;
         } finally {
             keep.clean();
@@ -600,7 +638,7 @@ class Proj {
 
     /**
      * List the CRSs from proj.db
-     * @param {object} args
+     * @param {Object} args
      * @param {number} [args.auth_name] - Authority name. If empty, all authorities are used
      * @returns {list}
      */

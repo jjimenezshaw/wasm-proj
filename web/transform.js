@@ -221,9 +221,10 @@ function updateMetadata(prefix) {
 
     const prev_log_level = proj.log_level(0); // disable PROJ log messages
     try {
-        const metadata = crs ? proj.obj_metadata({ crs: crs }) : {};
+        const metadata = crs ? proj.crs_metadata({ crs: crs }) : {};
         if (metadata.is_crs) {
-            setEpochEnabled(prefix, metadata.datum_is_dynamic);
+            const datum = proj.datum_metadata({ crs: crs })
+            setEpochEnabled(prefix, datum.is_dynamic);
 
             const a = proj.crs_axes({ crs: crs });
             for (let i = 0; i < a.name.length; i++) {
