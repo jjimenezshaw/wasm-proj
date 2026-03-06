@@ -254,6 +254,57 @@ describe('basic tests', async (t) => {
         });
     });
 
+    it('factors', async (t) => {
+        await it('simple', async (t) => {
+            const res = proj.factors({
+                crs: '+proj=utm +zone=32 +ellps=GRS80',
+                points: [{ lat: 0, lon: 9 }]
+            })
+            assert.ok(similar(res[0].meridional_scale, 0.9996, 1e-8));
+            assert.ok(similar(res[0].parallel_scale, 0.9996, 1e-8));
+            assert.ok(similar(res[0].angular_distortion, 0, 1e-7));
+            assert.ok(similar(res[0].meridian_parallel_angle, 90, 1e-7));
+            assert.ok(similar(res[0].areal_scale, 0.99920016, 1e-7));
+        });
+
+        await it('error', async (t) => {
+            const res = proj.factors({
+                crs: 'EPSG:4326',
+                points: [{ lat: 0, lon: 9 }]
+            })
+            assert.ok(similar(res[0].meridional_scale, 0, 1e-8));
+            assert.notEqual(0, res[0].error_code);
+            assert.ok(res[0].error_msg.includes('Invalid'));
+        });
+
+        await it('many', async (t) => {
+            const points = [];
+            for (let i = 0; i < 100; i++) {
+                for (let j = 0; j < 100; j++) {
+                    const p = [10 + j * 0.01, 0 + i * 0.01];
+                    points.push(p);
+                }
+            }
+
+            const res = proj.factors({
+                crs: '+proj=utm +zone=32 +ellps=GRS80',
+                points: points
+            })
+            assert.equal(10000, res.length)
+            let prev_meridional_scale = -100;
+            let prev_meridian_convergence = -100;
+            for (let point of res) {
+                assert.ok(point.meridional_scale < 10);
+                assert.ok(point.meridional_scale > 0.1);
+                assert.equal(0, point.error_code);
+                assert.notEqual(prev_meridional_scale, point.meridional_scale);
+                assert.notEqual(prev_meridian_convergence, point.meridian_convergence);
+                prev_meridional_scale = point.meridional_scale;
+                prev_meridian_convergence = point.meridian_convergence;
+            }
+        });
+    });
+
     it('geod_direct', async (t) => {
         await it('one', async (t) => {
             const res = proj.geodesic_direct({
