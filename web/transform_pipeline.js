@@ -113,10 +113,7 @@ function clearField(targetId) {
     el.value = '';
     el.title = '';
 
-    // Dispatch an input event so your validation, metadata, and URL updating functions run automatically
     el.dispatchEvent(new Event('input', { bubbles: true }));
-    // The ideas was to keep the user's cursor in the box
-    // but Chrome is taking a long time... let's do it for now.
     el.focus();
 }
 
@@ -189,6 +186,32 @@ async function handleTransform(proj_worker) {
     }
 }
 
+function setupEventListeners(proj_worker) {
+
+    ['inverse', 'use-network'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => validateForm());
+    });
+
+    document.getElementById('source-coordinates').addEventListener('input', () => validateForm());
+
+    document.getElementById('pipeline-file').addEventListener('change', (e) => handleFileLoad(e, 'pipeline-text'));
+    document.getElementById('coords-file').addEventListener('change', (e) => handleFileLoad(e, 'source-coordinates'));
+
+    document.querySelectorAll('[data-clear]').forEach(btn => {
+        btn.addEventListener('click', function() { clearField(this.getAttribute('data-clear')); });
+    });
+    document.querySelectorAll('[data-load]').forEach(btn => {
+        btn.addEventListener('click', function () { document.getElementById(this.getAttribute('data-load')).click(); });
+    });
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', function() { copyToClipboard(this.getAttribute('data-copy'), this); });
+    });
+
+    document.getElementById('pipeline-text').addEventListener('input', () => validateForm());
+    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
+
+}
+
 let proj;
 
 async function load() {
@@ -211,8 +234,7 @@ async function load() {
 
     const run = loadFromURLParams();
 
-    document.getElementById('pipeline-text').addEventListener('input', () => validateForm());
-    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
+    setupEventListeners(proj_worker);
 
     validateForm(true);
 

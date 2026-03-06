@@ -43,11 +43,11 @@
                 <div class="checkbox-group">
                     <label class="checkbox-label"
                         title="Promotes 2D CRS to 3D. It may change the transformation behavior.">
-                        <input type="checkbox" id="promote-3d" checked onchange="validateForm()"> Promote to 3D
+                        <input type="checkbox" id="promote-3d" checked> Promote to 3D
                     </label>
                     <label class="checkbox-label"
                         title="Enables querying available high-accuracy transformation grids over the network. It can be slower.">
-                        <input type="checkbox" id="use-network" checked onchange="validateForm()"> Use network
+                        <input type="checkbox" id="use-network" checked> Use network
                     </label>
                 </div>
             </div>
@@ -58,11 +58,10 @@
 
                     <div class="radio-group">
                         <label class="radio-label">
-                            <input type="radio" name="source_type" value="combo" checked
-                                onchange="toggleInputs('source')"> Select from Catalog
+                            <input type="radio" name="source_type" value="combo" checked> Select from Catalog
                         </label>
                         <label class="radio-label">
-                            <input type="radio" name="source_type" value="freetext" onchange="toggleInputs('source')">
+                            <input type="radio" name="source_type" value="freetext">
                             Free Text
                         </label>
                     </div>
@@ -72,10 +71,10 @@
                             <label>Horizontal or 3D CRS <span class="required">*</span></label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="source-horizontal-container">
-                                    <button class="clear-btn" onclick="clearField('source-horizontal-input')"
+                                    <button class="clear-btn" data-clear="source-horizontal-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="source-horizontal-input" placeholder="Type to search..."
-                                        autocomplete="off" oninput="validateForm()">
+                                        autocomplete="off">
                                     <div class="combo-dropdown">
                                         <select id="source-horizontal-select" class="combo-select" size="6"></select>
                                     </div>
@@ -88,10 +87,10 @@
                             <label>Vertical CRS</label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="source-vertical-container">
-                                    <button class="clear-btn" onclick="clearField('source-vertical-input')"
+                                    <button class="clear-btn" data-clear="source-vertical-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="source-vertical-input" placeholder="Type to search..."
-                                        autocomplete="off" oninput="validateForm()">
+                                        autocomplete="off">
                                     <div class="combo-dropdown">
                                         <select id="source-vertical-select" class="combo-select" size="6"></select>
                                     </div>
@@ -107,17 +106,14 @@
                             <div class="flex-header">
                                 <label for="source-freetext">Custom CRS Definition <span
                                         class="required">*</span></label>
-                                <button class="btn-small" onclick="document.getElementById('source-file').click()">
-                                    Load File</button>
-                                <input type="file" id="source-file" class="hidden"
-                                    onchange="handleFileLoad(event, 'source-freetext')">
+                                <button class="btn-small" data-load="source-file">Load File</button>
+                                <input type="file" id="source-file" class="hidden">
                             </div>
                             <div class="textarea-container">
-                                <button class="clear-btn" onclick="clearField('source-freetext')"
+                                <button class="clear-btn" data-clear="source-freetext"
                                     title="Clear field">&times;</button>
                                 <textarea id="source-freetext" class="freetext-text" spellcheck="false"
-                                    placeholder="Enter custom CRS definition..."
-                                    oninput="updateMetadata('source'); validateForm();"></textarea>
+                                    placeholder="Enter custom CRS definition..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -125,8 +121,7 @@
                     <div class="field-inline disabled" id="source-epoch-container"
                         title="Enabled only for dynamic datums">
                         <label for="source-epoch">Epoch</label>
-                        <input type="number" step="any" id="source-epoch" disabled class="w-7rem"
-                            oninput="validateForm()">
+                        <input type="number" step="any" id="source-epoch" disabled class="w-7rem">
                         <span class="helper-text">(Only for dynamic datums)</span>
                     </div>
 
@@ -140,17 +135,14 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Input Coordinates <span class="required">*</span></label>
-                            <button class="btn-small" onclick="document.getElementById('coords-file').click()">
-                                Load File</button>
-                            <input type="file" id="coords-file" class="hidden"
-                                onchange="handleFileLoad(event, 'source-coordinates')">
+                            <button class="btn-small" data-load="coords-file">Load File</button>
+                            <input type="file" id="coords-file" class="hidden">
                         </div>
                         <div class="textarea-container">
-                            <button class="clear-btn" onclick="clearField('source-coordinates')"
+                            <button class="clear-btn" data-clear="source-coordinates"
                                 title="Clear field">&times;</button>
                             <textarea id="source-coordinates" class="mono-space min-h-80"
-                                placeholder="Enter coordinates here (e.g., X Y Z)..."
-                                oninput="validateForm()"></textarea>
+                                placeholder="Enter coordinates here (e.g., X Y Z)..."></textarea>
                         </div>
                         <div class="center-btn-container">
                             <button type="button" class="btn-small" id="points-in-map"
@@ -165,12 +157,10 @@
 
                     <div class="radio-group">
                         <label class="radio-label">
-                            <input type="radio" name="target_type" value="combo" checked
-                                onchange="toggleInputs('target')"> Select from Catalog
+                            <input type="radio" name="target_type" value="combo" checked> Select from Catalog
                         </label>
                         <label class="radio-label">
-                            <input type="radio" name="target_type" value="freetext" onchange="toggleInputs('target')">
-                            Free Text
+                            <input type="radio" name="target_type" value="freetext"> Free Text
                         </label>
                     </div>
 
@@ -179,10 +169,10 @@
                             <label>Horizontal or 3D CRS <span class="required">*</span></label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="target-horizontal-container">
-                                    <button class="clear-btn" onclick="clearField('target-horizontal-input')"
+                                    <button class="clear-btn" data-clear="target-horizontal-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="target-horizontal-input" placeholder="Type to search..."
-                                        autocomplete="off" oninput="validateForm()">
+                                        autocomplete="off">
                                     <div class="combo-dropdown">
                                         <select id="target-horizontal-select" class="combo-select" size="6"></select>
                                     </div>
@@ -195,10 +185,10 @@
                             <label>Vertical CRS</label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="target-vertical-container">
-                                    <button class="clear-btn" onclick="clearField('target-vertical-input')"
+                                    <button class="clear-btn" data-clear="target-vertical-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="target-vertical-input" placeholder="Type to search..."
-                                        autocomplete="off" oninput="validateForm()">
+                                        autocomplete="off">
                                     <div class="combo-dropdown">
                                         <select id="target-vertical-select" class="combo-select" size="6"></select>
                                     </div>
@@ -214,17 +204,14 @@
                             <div class="flex-header">
                                 <label for="target-freetext">Custom CRS Definition <span
                                         class="required">*</span></label>
-                                <button class="btn-small" onclick="document.getElementById('target-file').click()">Load
-                                    File</button>
-                                <input type="file" id="target-file" class="hidden"
-                                    onchange="handleFileLoad(event, 'target-freetext')">
+                                <button class="btn-small" data-load="target-file">Load File</button>
+                                <input type="file" id="target-file" class="hidden">
                             </div>
                             <div class="textarea-container">
-                                <button class="clear-btn" onclick="clearField('target-freetext')"
+                                <button class="clear-btn" data-clear="target-freetext"
                                     title="Clear field">&times;</button>
                                 <textarea id="target-freetext" class="freetext-text" spellcheck="false"
-                                    placeholder="Enter custom CRS definition..."
-                                    oninput="updateMetadata('target'); validateForm();"></textarea>
+                                    placeholder="Enter custom CRS definition..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -232,8 +219,7 @@
                     <div class="field-inline disabled" id="target-epoch-container"
                         title="Enabled only for dynamic datums">
                         <label for="target-epoch">Epoch</label>
-                        <input type="number" step="any" id="target-epoch" disabled class="w-7rem"
-                            oninput="validateForm()">
+                        <input type="number" step="any" id="target-epoch" disabled class="w-7rem">
                         <span class="helper-text">(Only for dynamic datums)</span>
                     </div>
 
@@ -253,8 +239,7 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Transformed Coordinates</label>
-                            <button class="btn-small"
-                                onclick="copyToClipboard('target-coordinates', this)">Copy</button>
+                            <button class="btn-small" data-copy="target-coordinates">Copy</button>
                         </div>
                         <textarea id="target-coordinates" class="mono-space min-h-80" readonly
                             placeholder="Transformed results will appear here..."></textarea>
@@ -263,16 +248,16 @@
             </div>
 
             <div class="action-area">
-                <button id="btn-transform" class="btn-transform" disabled>Transform
-                    Coordinates</button>
+                <button id="btn-transform" class="btn-transform" disabled>Transform Coordinates</button>
             </div>
 
             <div class="full-width-section" id="summary-section">
                 <div class="flex-header summary-header">
                     <h3>Last Operation Summary</h3>
-                    <button class="btn-small" onclick="copyToClipboard('transformation-summary', this)">Copy</button>
+                    <button class="btn-small" data-copy="transformation-summary">Copy</button>
                 </div>
-                <div id="transformation-summary" class="summary-box mono-space">Summary details will appear after transformation...
+                <div id="transformation-summary" class="summary-box mono-space">Summary details will appear after
+                    transformation...
                 </div>
             </div>
         </div>

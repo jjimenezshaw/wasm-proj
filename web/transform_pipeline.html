@@ -34,7 +34,7 @@
             <div class="full-width-section">
                 <h2>Coordinate Pipeline Transformation with Wasm PROJ</h2>
                 <p class="description-text">
-                    Set the pipeline or definition of your transformation. More info in 
+                    Set the pipeline or definition of your transformation. More info in
                     <a href="https://proj.org/operations/index.html" target="_blank">PROJ coordinate operations</a>,
                     specially in <a href="https://proj.org/operations/pipeline.html">the pipeline operator</a>.
                     <br>
@@ -50,20 +50,18 @@
 
                             <label class="checkbox-label"
                                 title="Enables querying with PROJ_NETWORK=ON. The results may differ in some cases.">
-                                <input type="checkbox" id="use-network" checked onchange="validateForm()"> Enable network
+                                <input type="checkbox" id="use-network"> Enable
+                                network
                             </label>
                             <label class="checkbox-label" title="Performs the inverse transformation.">
-                                <input type="checkbox" id="inverse" onchange="validateForm()"> Inverse
+                                <input type="checkbox" id="inverse"> Inverse
                             </label>
                         </div>
-                        <button class="btn-small" onclick="document.getElementById('pipeline-file').click()">
-                            Load File</button>
-                        <input type="file" id="pipeline-file" class="hidden"
-                            onchange="handleFileLoad(event, 'pipeline-text')">
+                        <button class="btn-small" data-load="pipeline-file"> Load File</button>
+                        <input type="file" id="pipeline-file" class="hidden">
                     </div>
                     <div class="textarea-container">
-                        <button class="clear-btn" onclick="clearField('pipeline-text')"
-                            title="Clear field">&times;</button>
+                        <button class="clear-btn" data-clear="pipeline-text" title="Clear field">&times;</button>
                         <textarea id="pipeline-text" class="mono-space" class="freetext-text" spellcheck="false"
                             placeholder="Type here the transformation definition"></textarea>
                     </div>
@@ -78,17 +76,14 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Input Coordinates <span class="required">*</span></label>
-                            <button class="btn-small" onclick="document.getElementById('coords-file').click()">
-                                Load File</button>
-                            <input type="file" id="coords-file" class="hidden"
-                                onchange="handleFileLoad(event, 'source-coordinates')">
+                            <button class="btn-small" data-load="coords-file"> Load File</button>
+                            <input type="file" id="coords-file" class="hidden">
                         </div>
                         <div class="textarea-container">
-                            <button class="clear-btn" onclick="clearField('source-coordinates')"
+                            <button class="clear-btn" data-clear="source-coordinates"
                                 title="Clear field">&times;</button>
                             <textarea id="source-coordinates" class="mono-space min-h-80"
-                                placeholder="Enter coordinates here (e.g., X Y Z)..."
-                                oninput="validateForm()"></textarea>
+                                placeholder="Enter coordinates here (e.g., X Y Z)..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -105,8 +100,7 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Transformed Coordinates</label>
-                            <button class="btn-small"
-                                onclick="copyToClipboard('target-coordinates', this)">Copy</button>
+                            <button class="btn-small" data-copy="target-coordinates">Copy</button>
                         </div>
                         <textarea id="target-coordinates" class="mono-space min-h-80" readonly
                             placeholder="Transformed results will appear here..."></textarea>
@@ -122,7 +116,7 @@
             <div class="full-width-section" id="summary-section">
                 <div class="flex-header summary-header">
                     <h3>Last Operation Summary</h3>
-                    <button class="btn-small" onclick="copyToClipboard('transformation-summary', this)">Copy</button>
+                    <button class="btn-small" data-copy="transformation-summary">Copy</button>
                 </div>
                 <div id="transformation-summary" class="summary-box mono-space">Summary details will appear after
                     transformation...

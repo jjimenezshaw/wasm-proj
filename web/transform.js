@@ -572,6 +572,55 @@ function getFullDescriptor(crs_list, id) {
     return '';
 }
 
+function setupEventListeners(proj_worker, proj) {
+    // 1. Checkboxes & simple inputs
+    ['promote-3d', 'use-network'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => validateForm());
+    });
+
+    ['source-horizontal-input', 'source-vertical-input', 'source-epoch',
+        'target-horizontal-input', 'target-vertical-input', 'target-epoch',
+        'source-coordinates'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => validateForm());
+        });
+
+    // 2. Radio buttons
+    document.querySelectorAll('input[name="source_type"]').forEach(radio => {
+        radio.addEventListener('change', () => toggleInputs('source'));
+    });
+    document.querySelectorAll('input[name="target_type"]').forEach(radio => {
+        radio.addEventListener('change', () => toggleInputs('target'));
+    });
+
+    // 3. Freetext areas (Need metadata update + validation)
+    ['source', 'target'].forEach(prefix => {
+        document.getElementById(`${prefix}-freetext`).addEventListener('input', () => {
+            updateMetadata(prefix);
+            validateForm();
+        });
+    });
+
+    // 4. File inputs
+    document.getElementById('source-file').addEventListener('change', (e) => handleFileLoad(e, 'source-freetext'));
+    document.getElementById('target-file').addEventListener('change', (e) => handleFileLoad(e, 'target-freetext'));
+    document.getElementById('coords-file').addEventListener('change', (e) => handleFileLoad(e, 'source-coordinates'));
+
+    // 5. Data-Attribute Buttons (Clear, Load, Copy)
+    document.querySelectorAll('[data-clear]').forEach(btn => {
+        btn.addEventListener('click', function () { clearField(this.getAttribute('data-clear')); });
+    });
+    document.querySelectorAll('[data-load]').forEach(btn => {
+        btn.addEventListener('click', function () { document.getElementById(this.getAttribute('data-load')).click(); });
+    });
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', function () { copyToClipboard(this.getAttribute('data-copy'), this); });
+    });
+
+    // 6. Main Action Buttons
+    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
+    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
+}
+
 let proj;
 
 async function load() {
@@ -626,8 +675,7 @@ async function load() {
     updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
     updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
 
-    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
-    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
+    setupEventListeners(proj_worker, proj);
 
     loader.classList.add('hidden');
     appContent.classList.remove('loading-state');

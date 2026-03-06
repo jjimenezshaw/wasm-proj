@@ -88,6 +88,17 @@ function run(proj) {
     document.getElementById('output-text').innerText = res.msg;
 }
 
+function setupEventListeners(proj) {
+    document.querySelectorAll('[data-clear]').forEach(btn => {
+        btn.addEventListener('click', function() { clearField(this.getAttribute('data-clear')); });
+    });
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', function() { copyToClipboard(this.getAttribute('data-copy'), this); });
+    });
+
+    document.getElementById('btn-transform').addEventListener('click', () => run(proj));
+}
+
 async function load() {
     const appContent = document.getElementById('app-content');
     const loader = document.getElementById('loading-indicator');
@@ -107,7 +118,7 @@ async function load() {
         run(proj);
     }
 
-    document.getElementById('btn-transform').addEventListener('click', () => run(proj));
+    setupEventListeners(proj);
 
     loader.classList.add('hidden');
     appContent.classList.remove('loading-state');

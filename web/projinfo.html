@@ -51,7 +51,7 @@
                         <input type="checkbox" id="use-network" checked> Enable network
                     </label>
                     <div class="textarea-container">
-                        <button class="clear-btn" onclick="clearField('args-text')" title="Clear field">&times;</button>
+                        <button class="clear-btn" data-clear="args-text" title="Clear field">&times;</button>
                         <textarea id="args-text" class="mono-space" class="freetext-text" spellcheck="false"
                             placeholder="Type here the projinfo parameters"></textarea>
                     </div>
@@ -63,7 +63,7 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Return code: <spam id="rc"></spam></label>
-                            <button class="btn-small" onclick="copyToClipboard('output-text', this)">Copy</button>
+                            <button class="btn-small" data-copy="output-text">Copy</button>
                         </div>
                         <div id="output-text" class="mono-space min-h-80" readonly spellcheck="false"></div>
                     </div>
