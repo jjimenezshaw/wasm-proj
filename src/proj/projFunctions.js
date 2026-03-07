@@ -394,9 +394,15 @@ class Proj {
         return this.proj._proj_log_level(this.ctx, level);
     }
 
-    // equivalent to projinfo CLI https://proj.org/en/stable/apps/projinfo.html
-    // args: { args, use_network }
-    // return: { rc, msg }
+    /**
+     * Equivalent to projinfo CLI https://proj.org/apps/projinfo.html
+     * @example
+     * projinfo({params: ['EPSG:4326', 'EPSG:32632', '-o', 'proj']})
+     * @param {Object} args
+     * @param {string[]} [args.params] - Array with the parameters to pass to projinfo
+     * @param {boolean} [args.use_network] - Use network configuration. It may change some results
+     * @returns {{rc: number, msg: string}} - Return code and message.
+     */
     projinfo(args) {
         let msg = "";
         const callback = (level, message) => { msg += message; };
@@ -407,7 +413,7 @@ class Proj {
             if (args.use_network != network_enabled)
                 this.proj._proj_context_set_enable_network(this.ctx,
                     args.use_network);
-            const rc = this.proj.projinfo_ems(this.ctx, args.args, callback);
+            const rc = this.proj.projinfo_ems(this.ctx, args.params, callback);
             return { rc: rc, msg: msg };
         } finally {
             if (args.use_network != network_enabled)
@@ -416,7 +422,22 @@ class Proj {
         }
     }
 
+    /**
+     * Get the axes information.
+     * @example
+     * crs_axes({crs: 'EPSG:32630+3855'})
+     * @param {Object} args
+     * @param {string} args.crs - Definition of the CRS
+     * @returns {{name: string, abbr:string, direction:string,
+     *            conv_factor: number, unit:string}[]} - Axes in an array
+     */
     crs_axes(args) {
+        if (!args?.crs?.length) {
+            throw Error(`args.crs is mandatory.`);
+        }
+        if (typeof args.crs != 'string') {
+            throw Error(`args.crs must be a string.`);
+        }
         const ptrSize = this.ptr_size;
         const doubleSize = 8; // Doubles are 8 bytes
         const PJ_TYPE_COMPOUND_CRS = 16; // from proj.h
@@ -427,20 +448,13 @@ class Proj {
             const internal_axes = (P_crs) => {
                 const P_cs = keep.call("_proj_crs_get_coordinate_system",
                     this.ctx, P_crs);
-                const axis_count =
-                    this.proj._proj_cs_get_axis_count(this.ctx, P_cs);
+                const axis_count = this.proj._proj_cs_get_axis_count(this.ctx, P_cs);
                 const outNamePtr = keep.malloc(ptrSize);
                 const outAbbrevPtr = keep.malloc(ptrSize);
                 const outDirectionPtr = keep.malloc(ptrSize);
                 const outConvFactorPtr = keep.malloc(doubleSize);
                 const outUnitPtr = keep.malloc(ptrSize);
-                let res = {
-                    name: [],
-                    abbr: [],
-                    direction: [],
-                    conv_factor: [],
-                    unit: []
-                };
+                let res = [];
                 for (let i = 0; i < axis_count; i++) {
                     const r = this.proj._proj_cs_get_axis_info(
                         this.ctx, P_cs, i, outNamePtr, outAbbrevPtr,
@@ -448,13 +462,14 @@ class Proj {
                     if (r != 1) {
                         throw new Error("error calling proj_cs_get_axis_info");
                     }
-
-                    res.name.push(this._charstarstar_to_string(outNamePtr));
-                    res.abbr.push(this._charstarstar_to_string(outAbbrevPtr));
-                    res.direction.push(this._charstarstar_to_string(outDirectionPtr));
-                    res.conv_factor.push(
-                        this.proj.getValue(outConvFactorPtr, 'double'));
-                    res.unit.push(this._charstarstar_to_string(outUnitPtr));
+                    const d = {
+                        name: this._charstarstar_to_string(outNamePtr),
+                        abbr: this._charstarstar_to_string(outAbbrevPtr),
+                        direction: this._charstarstar_to_string(outDirectionPtr),
+                        conv_factor: this.proj.getValue(outConvFactorPtr, 'double'),
+                        unit: this._charstarstar_to_string(outUnitPtr),
+                    }
+                    res.push(d);
                 }
                 return res;
             };
@@ -465,9 +480,7 @@ class Proj {
                 const P_crs_1 = keep.call("_proj_crs_get_sub_crs", this.ctx, P_crs, 1);
                 res = internal_axes(P_crs_0);
                 const res1 = internal_axes(P_crs_1);
-                for (const key in res) {
-                    res[key] = res[key].concat(res1[key]);
-                }
+                res = res.concat(res1);
             } else {
                 res = internal_axes(P_crs);
             }
@@ -492,6 +505,18 @@ class Proj {
      * @returns {Transformer}
      */
     create_transformer_from_crs(args) {
+        if (!args?.source_crs?.length) {
+            throw Error(`args.source_crs is mandatory.`);
+        }
+        if (typeof args.source_crs != 'string') {
+            throw Error(`args.source_crs must be a string.`);
+        }
+        if (!args?.target_crs?.length) {
+            throw Error(`args.target_crs is mandatory.`);
+        }
+        if (typeof args.target_crs != 'string') {
+            throw Error(`args.target_crs must be a string.`);
+        }
         const keep = new Keeper(this.proj);
         try {
             const source_crs = keep.string(args?.source_crs);
@@ -553,6 +578,12 @@ class Proj {
      * @returns {Transformer}
      */
     create_transformer_from_pipeline(args) {
+        if (!args?.pipeline?.length) {
+            throw Error(`args.pipeline is mandatory.`);
+        }
+        if (typeof args.pipeline != 'string') {
+            throw Error(`args.pipeline must be a string.`);
+        }
         const keep = new Keeper(this.proj);
         try {
             const pipeline = keep.string(args?.pipeline);
@@ -582,10 +613,16 @@ class Proj {
     /**
      * Gets metadata of a CRS
      * @param {Object} args
-     * @param {string} args.crs - definition of the CRS
+     * @param {string} args.crs - Definition of the CRS
      * @returns {crs_metadata_result} the metadata
      */
     crs_metadata(args) {
+        if (!args?.crs?.length) {
+            throw Error(`args.crs is mandatory.`);
+        }
+        if (typeof args.crs != 'string') {
+            throw Error(`args.crs must be a string.`);
+        }
         const keep = new Keeper(this.proj);
         const res = {};
         try {
@@ -616,6 +653,12 @@ class Proj {
      * @returns {datum_metadata_result} the metadata
      */
     datum_metadata(args) {
+        if (!args?.crs?.length) {
+            throw Error(`args.crs is mandatory.`);
+        }
+        if (typeof args.crs != 'string') {
+            throw Error(`args.crs must be a string.`);
+        }
         const keep = new Keeper(this.proj);
         const res = {};
         const PJ_TYPE_UNKNOWN = 0;
@@ -706,6 +749,15 @@ class Proj {
      * @returns {list{factors_result}} - list of factors
      */
     factors(args) {
+        if (!args?.crs?.length) {
+            throw Error(`args.crs is mandatory.`);
+        }
+        if (typeof args.crs != 'string') {
+            throw Error(`args.crs must be a string.`);
+        }
+        if (!args?.points?.length) {
+            throw Error(`args.points is mandatory.`);
+        }
         const keep = new Keeper(this.proj);
         try {
             const crs = keep.string(args?.crs);

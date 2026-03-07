@@ -80,8 +80,8 @@ function run(proj) {
     updateURLParams();
     const commandLine = document.getElementById('args-text').value;
     const use_network = document.getElementById('use-network').checked;
-    const args = parseArgs(commandLine);
-    const res = proj.projinfo({ args: args, use_network: use_network });
+    const params = parseArgs(commandLine);
+    const res = proj.projinfo({ params: params, use_network: use_network });
     const ok = "&#9989;";
     const wrong = "&#10060;";
     document.getElementById('rc').innerHTML = `${res.rc} ${res.rc == 0 ? ok : wrong}`;

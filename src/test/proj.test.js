@@ -88,21 +88,38 @@ describe('basic tests', async (t) => {
 
     it('projinfo', async (t) => {
         await t.test('simple WGS84', (t) => {
-            const res = proj.projinfo({ args: ["EPSG:4326"] });
+            const res = proj.projinfo({ params: ["EPSG:4326"] });
             assert.equal(res.rc, 0);
             assert.ok(res.msg.includes("WGS 84"));
         });
 
         await t.test('WGS84 to UTM32', (t) => {
-            const res = proj.projinfo({ args: ["EPSG:4326", "EPSG:32632"] });
+            const res = proj.projinfo({ params: ["EPSG:4326", "EPSG:32632"] });
             assert.equal(res.rc, 0);
             assert.ok(res.msg.includes("Candidate operations found: 1"));
             assert.ok(res.msg.includes("EPSG:16032, UTM zone 32N"));
         });
     });
 
-    it('transform crs', async (t) => {
-        await t.test('simple', (t) => {
+    it('transform', async (t) => {
+        await it('transform crs wrong input', async (t) => {
+            await assert.rejects(async () => { await proj.create_transformer_from_crs() },
+                { message: /args.source_crs is mandatory/i }
+            );
+            await assert.rejects(async () => { await proj.create_transformer_from_crs({}) },
+                { message: /args.source_crs is mandatory/i }
+            );
+            await assert.rejects(async () => { await proj.create_transformer_from_crs({source_crs: ''}) },
+                { message: /args.source_crs is mandatory/i }
+            );
+            await assert.rejects(async () => { await proj.create_transformer_from_crs({source_crs: [9]}) },
+                { message: /args.source_crs must be a string/i }
+            );
+            await assert.rejects(async () => { await proj.create_transformer_from_crs({source_crs: 'EPSG:4326'}) },
+                { message: /args.target_crs is mandatory/i }
+            );
+        })
+        await it('transform crs', async (t) => {
             const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             let p = tr.transform({ points: [[47, 8], [47, 8, 1189]] });
             assert.equal(p.length, 2);
@@ -110,20 +127,16 @@ describe('basic tests', async (t) => {
             assert.ok(similar_array(p[1], [2642695.405662641, 1205590.4946125143, 1189], 1e-4))
             tr.dispose();
         })
-    })
 
-    it('transform crs always_xy input', async (t) => {
-        await t.test('simple', (t) => {
+        await it('transform crs always_xy input', async (t) => {
             const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056", always_xy: true });
             let p = tr.transform({ points: [[8, 47]] });
             assert.equal(p.length, 1);
             assert.ok(similar_array(p[0], [2642695.4201556733, 1205590.5221826336], 1e-4))
             tr.dispose();
         })
-    })
 
-    it('transform crs always_xy compare', async (t) => {
-        await t.test('simple', (t) => {
+        await it('transform crs always_xy compare', async (t) => {
             const tr1 = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:3044", always_xy: true });
             const tr2 = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:25832", always_xy: false });
             const tr3 = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:25832" });
@@ -137,34 +150,31 @@ describe('basic tests', async (t) => {
             tr2.dispose();
             tr3.dispose();
         })
-    })
 
-    it('transform invalid coordinate', async (t) => {
-        await t.test('simple', (t) => {
+        await it('transform invalid coordinate', async (t) => {
             const tr = proj.create_transformer_from_crs({ source_crs: "EPSG:4258", target_crs: "EPSG:2056" });
             assert.throws(() => { tr.transform({ points: [[147, 8]] }); }, { message: /Invalid coordinate/i });
             tr.dispose();
         })
-    })
 
-    it('transform pipeline', async (t) => {
-        await t.test('MGI / Austria GK M34', (t) => {
-            // EPSG:31259
-            const tr = proj.create_transformer_from_pipeline({
-                pipeline:
-                    "+proj=tmerc +lat_0=0 +lon_0=16.3333333333333 +k=1 +x_0=750000 +y_0=-5000000 +ellps=bessel +units=m +no_defs"
-            });
-            // this pipeline is lon-lat in radians.
-            const point = [16, 48].map((c) => c * Math.PI / 180); // Somewhere near Wien.
-            let p = tr.transform({ points: [point] });
-            assert.equal(p.length, 1);
-            assert.ok(similar_array(p[0], [725127.919986, 317938.999087], 1e-4))
-            tr.dispose();
-        })
+        await it('transform pipeline', async (t) => {
+            await it('MGI / Austria GK M34', (t) => {
+                // EPSG:31259
+                const tr = proj.create_transformer_from_pipeline({
+                    pipeline:
+                        "+proj=tmerc +lat_0=0 +lon_0=16.3333333333333 +k=1 +x_0=750000 +y_0=-5000000 +ellps=bessel +units=m +no_defs"
+                });
+                // this pipeline is lon-lat in radians.
+                const point = [16, 48].map((c) => c * Math.PI / 180); // Somewhere near Wien.
+                let p = tr.transform({ points: [point] });
+                assert.equal(p.length, 1);
+                assert.ok(similar_array(p[0], [725127.919986, 317938.999087], 1e-4))
+                tr.dispose();
+            })
 
-        await t.test('From WGS84 to MGI / Austria GK M34', (t) => {
-            const tr = proj.create_transformer_from_pipeline({
-                pipeline: `+proj=pipeline
+            await it('From WGS84 to MGI / Austria GK M34', (t) => {
+                const tr = proj.create_transformer_from_pipeline({
+                    pipeline: `+proj=pipeline
                     +step +proj=axisswap +order=2,1
                     +step +proj=unitconvert +xy_in=deg +xy_out=rad
                     +step +proj=push +v_3
@@ -176,48 +186,79 @@ describe('basic tests', async (t) => {
                     +step +proj=tmerc +lat_0=0 +lon_0=16.3333333333333 +k=1 +x_0=750000
                             +y_0=-5000000 +ellps=bessel
                     +step +proj=axisswap +order=2,1`
-            });
-            // this pipeline is lat-lon in degrees, output in n-e.
-            const point = [48, 16]; // Somewhere near Wien.
-            let p = tr.transform({ points: [point] });
-            assert.equal(p.length, 1);
-            assert.ok(similar_array(p[0], [317993.014558, 725213.063933], 1e-4))
-            tr.dispose();
+                });
+                // this pipeline is lat-lon in degrees, output in n-e.
+                const point = [48, 16]; // Somewhere near Wien.
+                let p = tr.transform({ points: [point] });
+                assert.equal(p.length, 1);
+                assert.ok(similar_array(p[0], [317993.014558, 725213.063933], 1e-4))
+                tr.dispose();
+            })
         })
-    })
+    });
 
     await it('axes', async (t) => {
         await it('2D', async (t) => {
             const axes = await proj.crs_axes({ crs: "EPSG:4326" });
-            const expected = {
-                name: ['Geodetic latitude', 'Geodetic longitude'],
-                abbr: ['Lat', 'Lon'],
-                direction: ['north', 'east'],
-                conv_factor: [0.017453292519943295, 0.017453292519943295],
-                unit: ['degree', 'degree']
-            };
+            const expected = [{
+                name: 'Geodetic latitude',
+                abbr: 'Lat',
+                direction: 'north',
+                conv_factor: 0.017453292519943295,
+                unit: 'degree'
+            }, {
+                name: 'Geodetic longitude',
+                abbr: 'Lon',
+                direction: 'east',
+                conv_factor: 0.017453292519943295,
+                unit: 'degree'
+            }];
             assert.deepEqual(axes, expected);
         });
         await it('3D', async (t) => {
             const axes = await proj.crs_axes({ crs: "EPSG:7909" });
-            const expected = {
-                name: ['Geodetic latitude', 'Geodetic longitude', 'Ellipsoidal height'],
-                abbr: ['Lat', 'Lon', 'h'],
-                direction: ['north', 'east', 'up'],
-                conv_factor: [0.017453292519943295, 0.017453292519943295, 1],
-                unit: ['degree', 'degree', 'metre']
-            };
+            const expected = [{
+                name: 'Geodetic latitude',
+                abbr: 'Lat',
+                direction: 'north',
+                conv_factor: 0.017453292519943295,
+                unit: 'degree'
+            }, {
+                name: 'Geodetic longitude',
+                abbr: 'Lon',
+                direction: 'east',
+                conv_factor: 0.017453292519943295,
+                unit: 'degree'
+            }, {
+                name: 'Ellipsoidal height',
+                abbr: 'h',
+                direction: 'up',
+                conv_factor: 1,
+                unit: 'metre'
+            }];
             assert.deepEqual(axes, expected);
         });
         await it('compound', async (t) => {
             const axes = await proj.crs_axes({ crs: "EPSG:6405+8228" });
-            const expected = {
-                name: ['Easting', 'Northing', 'Gravity-related height'],
-                abbr: ['X', 'Y', 'H'],
-                direction: ['east', 'north', 'up'],
-                conv_factor: [0.3048, 0.3048, 0.3048],
-                unit: ['foot', 'foot', 'foot']
-            };
+            const expected = [{
+                name: 'Easting',
+                abbr: 'X',
+                direction: 'east',
+                conv_factor: 0.3048,
+                unit: 'foot'
+            }, {
+                name: 'Northing',
+                abbr: 'Y',
+                direction: 'north',
+                conv_factor: 0.3048,
+                unit: 'foot'
+            }, {
+                name: 'Gravity-related height',
+                abbr: 'H',
+                direction: 'up',
+                conv_factor: 0.3048,
+                unit: 'foot'
+            }];
             assert.deepEqual(axes, expected);
         });
     });

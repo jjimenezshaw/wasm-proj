@@ -227,14 +227,11 @@ function updateMetadata(prefix) {
             setEpochEnabled(prefix, datum.is_dynamic);
 
             const a = proj.crs_axes({ crs: crs });
-            for (let i = 0; i < a.name.length; i++) {
-                if (i > 0) metadataText += "\n";
-                metadataText += `${a.name[i]} (${a.abbr[i]})  |  ${a.direction[i]}  -  [${a.unit[i]}]`
-            }
-            if (!a.name?.length) {
+            metadataText = a.map(e => `${e.name} (${e.abbr})  |  ${e.direction}  -  [${e.unit}]`).join('\n');
+            if (a.length == 0) {
                 metadataText = `Cannot get data from '${crs}'`;
             } else if (prefix == 'target') {
-                const axUnit = a.unit[0].toLowerCase();
+                const axUnit = a[0].unit.toLowerCase();
                 const dp = document.getElementById(`decimal-places`);
                 if (axUnit.includes('degree') || axUnit.includes('rad')) {
                     dp.value = 9;
