@@ -715,9 +715,8 @@ class Proj {
             }
 
             const coord_ptr = keep.malloc(32);
-            const coord_index = coord_ptr / 8;
-            this.proj.HEAPF64[coord_index + 2] = 0; // z
-            this.proj.HEAPF64[coord_index + 3] = 0; // t
+            this.proj.setValue(coord_ptr + 8 * 2, 0, 'double'); // z
+            this.proj.setValue(coord_ptr + 8 * 3, 0, 'double'); // t
 
             const factors_ptr = keep.malloc(96);
             const ppp = [
@@ -743,8 +742,9 @@ class Proj {
                 const lat_rad = this.proj._proj_torad(lat);
                 const lon_rad = this.proj._proj_torad(lon);
 
-                this.proj.HEAPF64[coord_index + 0] = lon_rad;
-                this.proj.HEAPF64[coord_index + 1] = lat_rad;
+                this.proj.setValue(coord_ptr + 8 * 0, lon_rad, 'double');
+                this.proj.setValue(coord_ptr + 8 * 1, lat_rad, 'double');
+
                 this.proj._proj_factors(factors_ptr, P_crs, coord_ptr);
                 const error_code = this.proj._proj_errno(P_crs);
                 if (error_code) this.proj._proj_errno_reset(P_crs);
