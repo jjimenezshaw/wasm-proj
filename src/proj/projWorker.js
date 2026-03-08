@@ -7,6 +7,8 @@
 
 const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
+let next_transformer_id = 1;
+
 let node_parentPort;
 if (is_node) {
     node_parentPort = require('node:worker_threads').parentPort;
@@ -75,7 +77,7 @@ async function handle_message(payload) {
 
         // Check if the result has funcion dispose
         if (result && typeof result.dispose === 'function') {
-            const new_object_id = `disposable_${crypto.randomUUID()}`;
+            const new_object_id = `disposable_${next_transformer_id++}`;
             g_object_registry.set(new_object_id, result);
 
             send_message({
