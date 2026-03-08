@@ -1,6 +1,6 @@
 'use strict'
 
-/**
+/*
  * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
  * SPDX-License-Identifier: MIT
  */
@@ -194,28 +194,32 @@ class Transformer {
     }
 
     /**
-     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @param {Object} [args]
+     * @param {boolean} [args.inverse] - use the inverse operation.
      * @returns {boolean} true if the input of the transformation is in radians
      */
     angular_input(args) {
         return this.proj._proj_angular_input(this.P, args?.inverse ? -1 : 1);
     }
     /**
-     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @param {Object} [args]
+     * @param {boolean} [args.inverse] - use the inverse operation.
      * @returns {boolean} true if the input of the transformation is in degrees
      */
     degree_input(args) {
         return this.proj._proj_degree_input(this.P, args?.inverse ? -1 : 1);
     }
     /**
-     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @param {Object} [args]
+     * @param {boolean} [args.inverse] - use the inverse operation.
      * @returns {boolean} true if the output of the transformation is in radians
      */
     angular_output(args) {
         return this.proj._proj_angular_output(this.P, args?.inverse ? -1 : 1);
     }
     /**
-     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @param {Object} [args]
+     * @param {boolean} [args.inverse] - use the inverse operation.
      * @returns {boolean} true if the output of the transformation is in degrees
      */
     degree_output(args) {
@@ -509,13 +513,20 @@ class Proj {
     }
 
     /**
+     * @typedef {Object} Axis
+     * @property {string} name
+     * @property {string} abbr
+     * @property {string} direction - north, south, east, west, ...
+     * @property {number} conv_factor - conversion to SI, like metre or radian.
+     * @property {string} unit - name of the unit, like metre, degree, foot.
+     */
+    /**
      * Get the axes information.
      * @example
      * crs_axes({crs: 'EPSG:32630+3855'})
      * @param {Object} args
      * @param {string} args.crs - Definition of the CRS
-     * @returns {{name: string, abbr:string, direction:string,
-     *            conv_factor: number, unit:string}[]} - Axes in an array
+     * @returns {Axis[]} - Axes in an array
      */
     crs_axes(args) {
         if (!args?.crs?.length) {
@@ -769,12 +780,12 @@ class Proj {
      * List the CRSs from proj.db
      * @param {Object} args
      * @param {number} [args.auth_name] - Authority name. If empty, all authorities are used
-     * @returns {{auth: string, code: string, name: string, type: number,
+     * @returns {Array<{auth: string, code: string, name: string, type: number,
      *            deprecated: boolean, bbox_valid: boolean,
      *            west_lon_degree: number, south_lat_degree: number,
      *            east_lon_degree: number, north_lat_degree: number,
      *            area_name: string, projection_method_name: string, celestial_body_name: string
-     *            }[]}
+     *            }>}
      */
     crs_list(args) {
         const keep = new Keeper(this.proj);
@@ -837,7 +848,7 @@ class Proj {
      * @param {Object} args
      * @param {string} args.crs - definition of the CRS
      * @param {list} args.points - {lat:, lon:} or [lat, lon]
-     * @returns {list{factors_result}} - list of factors
+     * @returns {factors_result[]} - list of factors
      */
     factors(args) {
         if (!args?.crs?.length) {
@@ -913,8 +924,6 @@ class Proj {
 
     /**
      * Still in development
-     * @param {*} args
-     * @returns
      */
     geodesic_direct(args) {
         const keep = new Keeper(this.proj);
