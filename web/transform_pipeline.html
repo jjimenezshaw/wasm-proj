@@ -21,12 +21,16 @@
         <div id="loading-indicator" class="hidden">&#8987;</div>
 
         <header class="app-header">
-            <div class="header-title">Wasm PROJ - transform pipeline</div>
+            <div class="header-title">Wasm PROJ - pipeline transform</div>
             <nav class="header-nav">
                 <a href="./transform.html">CRS transform</a>
                 <a href="./transform_pipeline.html">Pipeline transform</a>
                 <a href="./projinfo.html">projinfo</a>
                 <a href="./">Home</a>
+
+                <a href="https://github.com/jjimenezshaw/wasm-proj" target="_blank" class="github-link"
+                    title="View source on GitHub"></a>
+
             </nav>
         </header>
 
@@ -50,8 +54,7 @@
 
                             <label class="checkbox-label"
                                 title="Enables querying with PROJ_NETWORK=ON. The results may differ in some cases.">
-                                <input type="checkbox" id="use-network"> Enable
-                                network
+                                <input type="checkbox" id="use-network" checked> Use network
                             </label>
                             <label class="checkbox-label" title="Performs the inverse transformation.">
                                 <input type="checkbox" id="inverse"> Inverse

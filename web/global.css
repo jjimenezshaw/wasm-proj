@@ -10,10 +10,10 @@
     --bg-error: pink;
 
     /* Text Colors */
-    --text-main: #1f2937;      /* Standard body text */
-    --text-medium: #374151;    /* Buttons, inputs, read-only text */
-    --text-secondary: #4b5563; /* Labels, navigation, descriptions */
-    --text-tertiary: #6b7280;  /* Helper text */
+    --text-main: #111827;      /* Standard body text */
+    --text-medium: #1f2937;    /* Buttons, inputs, read-only text */
+    --text-secondary: #2d333d; /* Labels, navigation, descriptions */
+    --text-tertiary: #4b5563;  /* Helper text */
     --text-disabled: #9ca3af;  /* Disabled text, icons, placeholders */
 
     /* Background Colors */
@@ -73,7 +73,12 @@ a { text-decoration: none; }
     font-weight: 700;
 }
 
-.header-nav { display: flex; gap: 1.5rem; }
+.header-nav {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
 .header-nav a {
     color: var(--text-secondary);
     font-weight: 500;
@@ -81,6 +86,50 @@ a { text-decoration: none; }
     transition: color 0.2s ease;
 }
 .header-nav a:hover { color: var(--color-primary); }
+
+/* --- GitHub Link --- */
+.github-link {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%234b5563' d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.github-link:hover {
+    opacity: 1;
+}
+
+/* --- App Footer --- */
+.app-footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}
+
+.app-footer p {
+    margin: 0;
+}
+
+.app-footer a {
+    color: var(--text-secondary);
+    text-decoration: underline;
+    text-decoration-color: var(--border-main);
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.app-footer a:hover {
+    color: var(--color-primary);
+    text-decoration-color: var(--color-primary);
+}
 
 /* --- Layout Wrappers --- */
 .main-wrapper {
