@@ -1,5 +1,10 @@
 'use strict'
 
+/**
+ * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
+ * SPDX-License-Identifier: MIT
+ */
+
 // Safari cannot change the display in options in select. So do a heavier work.
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 

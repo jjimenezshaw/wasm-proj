@@ -1,7 +1,22 @@
-"use strict"
+'use strict'
 
-// Small class to help to manage memory.
+/**
+ * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
+ * SPDX-License-Identifier: MIT
+ */
+
+/** Small internal class to help to manage memory.
+ * It is kind of a manual garbage collector, designed to work in a function that uses wasm calls and objects.
+ * It has methods to deal with the proj_destroy function, and with usual wasm malloc and free.
+ * Do not forget to call 'clean()' at the end, usually in a 'finally' statement
+ * @class
+ */
 class Keeper {
+    /**
+     * Creates a new Keeper
+     * @param {object} proj - Proj module from wasm
+     * @param {boolean} debug - enable to log the creation and destruction of the objects.
+     */
     constructor(proj, debug = false) {
         if (!proj) {
             throw new Error("Empty proj ptr. Have you called Proj.init()?");
@@ -14,6 +29,12 @@ class Keeper {
         this.special_destroy = [];
     };
 
+    /**
+     * Adds a pointer to take care of it, destroying or freeing it later on 'clean()'.
+     * @param {number} ptr - pointer to add to this keeper.
+     * @param {boolean} proj_destroy - flag telling if the object must be destroyed with proj_destroy
+     * @returns {number} - The same pointer provided
+     */
     add(ptr, proj_destroy = true) {
         if (proj_destroy) {
             if (this.debug)
@@ -27,11 +48,25 @@ class Keeper {
         return ptr;
     };
 
+    /**
+     * Calls a proj function with those parameters,
+     * and registers the pointer to be destroyed with proj_destroy.
+     * @param {string} name - proj function name
+     * @param  {...any} args - arguments for function 'name'
+     * @returns {number} the created pointer
+     */
     call(name, ...args) {
         const ptr = this.proj[name](...args);
         return this.add(ptr, true);
     }
 
+    /**
+     * Similar to call(), but you specify the destructor function name, not proj_destroy.
+     * @param {string} name - proj function name
+     * @param {string} destroyer - proj function destroyer name.
+     * @param  {...any} args - arguments for function 'name'
+     * @returns {number} - the created pointer
+     */
     call_destroyer(name, destroyer, ...args) {
         const ptr = this.proj[name](...args);
         if (this.debug)
@@ -40,16 +75,29 @@ class Keeper {
         return ptr;
     }
 
-    malloc(ptrSize) {
-        const ptr = this.proj._malloc(ptrSize);
+    /**
+     * Allocates memory in wasm, and registers to be freed.
+     * @param {*} ptr_size - size to allocate in bytes.
+     * @returns {number} - the created pointer
+     */
+    malloc(ptr_size) {
+        const ptr = this.proj._malloc(ptr_size);
         return this.add(ptr, false);
     };
 
+    /**
+     * Converts a javascript string into a new UTF8, and resgisters to be freed
+     * @param {string} str - javascript string
+     * @returns {number} - the created pointer
+     */
     string(str) {
         const ptr = this.proj.stringToNewUTF8(str);
         return this.add(ptr, false);
     };
 
+    /**
+     * Destroys every pointer registered.
+     */
     clean() {
         this.special_destroy.reverse();
         for (const p of this.special_destroy) {
@@ -81,8 +129,8 @@ class Keeper {
 function struct_ptr_to_dict(proj, struct_ptr, params) {
     /// params is [[name, type]]
     /// where type can be
-    ///   string, i32, double
-    /// if name = __ , it is ignored. Needed to count the offset
+    ///   string, b32, i32, double
+    /// if name == __ , it is ignored. Needed to count the offset
     let offset = 0;
     const dummy = "__";
     const res = {}
@@ -134,6 +182,9 @@ class Transformer {
         this.last_op_inverse = false;
     }
 
+    /** Function to destroy the wasm pointers. Call it once you are done.
+     * Calling any other method afterwards will fail.
+     */
     dispose() {
         this.proj._proj_destroy(this.P);
         this.P = undefined;
@@ -142,19 +193,42 @@ class Transformer {
         this.proj = undefined;
     }
 
+    /**
+     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @returns {boolean} true if the input of the transformation is in radians
+     */
     angular_input(args) {
         return this.proj._proj_angular_input(this.P, args?.inverse ? -1 : 1);
     }
+    /**
+     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @returns {boolean} true if the input of the transformation is in degrees
+     */
     degree_input(args) {
         return this.proj._proj_degree_input(this.P, args?.inverse ? -1 : 1);
     }
+    /**
+     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @returns {boolean} true if the output of the transformation is in radians
+     */
     angular_output(args) {
         return this.proj._proj_angular_output(this.P, args?.inverse ? -1 : 1);
     }
+    /**
+     * @param {{inverse?: boolean}} [args] - use the inverse operation
+     * @returns {boolean} true if the output of the transformation is in degrees
+     */
     degree_output(args) {
         return this.proj._proj_degree_output(this.P, args?.inverse ? -1 : 1);
     }
 
+    /**
+     * 
+     * @param {Object} args 
+     * @param {number[][]} args.points - vector of points to transform
+     * @param {boolean} [args.inverse] - apply the inverse operation.
+     * @returns {number[][]}
+     */
     transform(args) {
         const keep = new Keeper(this.proj);
         try {
@@ -163,8 +237,8 @@ class Transformer {
             const inverse = args.inverse;
             this.last_op_inverse = inverse;
 
-            let coordPtr = keep.malloc(32 * number_of_points);
-            const coordView = new Float64Array(this.proj.HEAPF64.buffer, coordPtr, 4 * number_of_points);
+            let coord_ptr = keep.malloc(32 * number_of_points); // 4 doubles.
+            const coordView = new Float64Array(this.proj.HEAPF64.buffer, coord_ptr, 4 * number_of_points);
             for (let p = 0; p < number_of_points; p++) {
                 coordView[p * 4 + 0] = points[p][0];
                 coordView[p * 4 + 1] = points[p][1];
@@ -172,10 +246,10 @@ class Transformer {
                 coordView[p * 4 + 3] = points[p].length > 3 ? points[p][3] : Infinity; // HUGE_VAL
             }
 
-            const r = this.proj._proj_trans_array(this.P, inverse ? -1 : 1, number_of_points, coordPtr);
+            const r = this.proj._proj_trans_array(this.P, inverse ? -1 : 1, number_of_points, coord_ptr);
             if (r != 0) {
-                const msgPtr = this.proj._proj_context_errno_string(this.ctx, r);
-                const msg = this.proj.UTF8ToString(msgPtr);
+                const msg_ptr = this.proj._proj_context_errno_string(this.ctx, r);
+                const msg = this.proj.UTF8ToString(msg_ptr);
                 throw new Error(`_proj_trans_array error ${msg}`);
             }
 
@@ -194,6 +268,21 @@ class Transformer {
         }
     }
 
+    /** 
+     * @typedef {Object} get_last_operation_result
+     * @property {string} id - id of the operation
+     * @property {string} description
+     * @property {string} definition
+     * @property {boolean} has_inverse
+     * @property {number} accuracy
+     * @property {string} proj_5 - proj pipeline multiline represantion
+     * @property {string} wkt2 - WKT2 multiline representation
+     */
+    /**
+     * Returns proj_pj_info for the last operation, with some extra representations.
+     * If called before doing any transformation it will fail.
+     * @returns {get_last_operation_result} - last operation information
+     */
     get_last_operation() {
         let keep = new Keeper(this.proj);
         try {
@@ -205,31 +294,31 @@ class Transformer {
             }
 
             this.proj._proj_pj_info(struct_ptr, operation_ptr);
-            const idPtr = this.proj.getValue(struct_ptr + 0, 'i32');
-            const descriptionPtr = this.proj.getValue(struct_ptr + 4, 'i32');
-            const definitionPtr = this.proj.getValue(struct_ptr + 8, 'i32');
+            const id_ptr = this.proj.getValue(struct_ptr + 0, 'i32');
+            const description_ptr = this.proj.getValue(struct_ptr + 4, 'i32');
+            const definition_ptr = this.proj.getValue(struct_ptr + 8, 'i32');
             const has_inverse = !!this.proj.getValue(struct_ptr + 12, 'i32');
             const accuracy = this.proj.getValue(struct_ptr + 16, 'double');
 
             const PROJ_5 = 0;
             const PJ_WKT2_2019 = 2;
 
-            const optionStr = "MULTILINE=YES";
-            const optionStrPtr = keep.string(optionStr);
+            const option_str = "MULTILINE=YES";
+            const option_str_ptr = keep.string(option_str);
 
             // We need 8 bytes (two 32-bit pointers: one for the string, one for NULL)
-            const optionsArrayPtr = keep.malloc(8);
+            const options_array_ptr = keep.malloc(8);
 
-            this.proj.setValue(optionsArrayPtr, optionStrPtr, 'i32');
-            this.proj.setValue(optionsArrayPtr + 4, 0, 'i32'); // null terminator.
+            this.proj.setValue(options_array_ptr, option_str_ptr, 'i32');
+            this.proj.setValue(options_array_ptr + 4, 0, 'i32'); // null terminator.
 
-            const proj_5 = this.proj._proj_as_proj_string(this.ctx, operation_ptr, PROJ_5, optionsArrayPtr);
+            const proj_5 = this.proj._proj_as_proj_string(this.ctx, operation_ptr, PROJ_5, options_array_ptr);
             const wkt2 = this.proj._proj_as_wkt(this.ctx, operation_ptr, PJ_WKT2_2019, 0);
 
             const res = {
-                id: this.proj.UTF8ToString(idPtr),
-                description: this.proj.UTF8ToString(descriptionPtr),
-                definition: this.proj.UTF8ToString(definitionPtr),
+                id: this.proj.UTF8ToString(id_ptr),
+                description: this.proj.UTF8ToString(description_ptr),
+                definition: this.proj.UTF8ToString(definition_ptr),
                 has_inverse: has_inverse,
                 accuracy: accuracy,
                 proj_5: this.proj.UTF8ToString(proj_5),
@@ -260,25 +349,22 @@ class Proj {
      * @callback on_load_callback
      * @param {module} module
      */
-
     /**
      * callback for failed init
      * @callback on_failed_callback
      * @param {Error} error
      */
-
     /**
-     * callback for log
+     * callback for log. It doesn't work in the Worker.
      * @callback printer
      * @param {string} text
      */
-
     /** initializes the Proj object after construction *asynchronously*
      * calling the proper WASM module factory
      * @param {on_load_callback} [on_loaded]
      * @param {on_failed_callback} [on_failed]
      * @param {{wasm_dir: string, print: printer, printErr: printer}} [options]
-     * @returns {Promise}
+     * @returns {Promise<void>}
      */
     async init(on_loaded, on_failed, options) {
         if (typeof ProjModuleFactory === 'undefined') {
@@ -438,8 +524,8 @@ class Proj {
         if (typeof args.crs != 'string') {
             throw Error(`args.crs must be a string.`);
         }
-        const ptrSize = this.ptr_size;
-        const doubleSize = 8; // Doubles are 8 bytes
+        const ptr_size = this.ptr_size;
+        const double_size = 8; // Doubles are 8 bytes
         const PJ_TYPE_COMPOUND_CRS = 16; // from proj.h
         let keep = new Keeper(this.proj);
         let res = {};
@@ -449,11 +535,11 @@ class Proj {
                 const P_cs = keep.call("_proj_crs_get_coordinate_system",
                     this.ctx, P_crs);
                 const axis_count = this.proj._proj_cs_get_axis_count(this.ctx, P_cs);
-                const outNamePtr = keep.malloc(ptrSize);
-                const outAbbrevPtr = keep.malloc(ptrSize);
-                const outDirectionPtr = keep.malloc(ptrSize);
-                const outConvFactorPtr = keep.malloc(doubleSize);
-                const outUnitPtr = keep.malloc(ptrSize);
+                const outNamePtr = keep.malloc(ptr_size);
+                const outAbbrevPtr = keep.malloc(ptr_size);
+                const outDirectionPtr = keep.malloc(ptr_size);
+                const outConvFactorPtr = keep.malloc(double_size);
+                const outUnitPtr = keep.malloc(ptr_size);
                 let res = [];
                 for (let i = 0; i < axis_count; i++) {
                     const r = this.proj._proj_cs_get_axis_info(
@@ -683,7 +769,12 @@ class Proj {
      * List the CRSs from proj.db
      * @param {Object} args
      * @param {number} [args.auth_name] - Authority name. If empty, all authorities are used
-     * @returns {list}
+     * @returns {{auth: string, code: string, name: string, type: number,
+     *            deprecated: boolean, bbox_valid: boolean,
+     *            west_lon_degree: number, south_lat_degree: number,
+     *            east_lon_degree: number, north_lat_degree: number,
+     *            area_name: string, projection_method_name: string, celestial_body_name: string
+     *            }[]}
      */
     crs_list(args) {
         const keep = new Keeper(this.proj);
@@ -704,9 +795,9 @@ class Proj {
                 ["deprecated", "b32"],
                 ["bbox_valid", "b32"],
                 ["west_lon_degree", "double"],
-                ["south_lon_degree", "double"],
+                ["south_lat_degree", "double"],
                 ["east_lon_degree", "double"],
-                ["north_lon_degree", "double"],
+                ["north_lat_degree", "double"],
                 ["area_name", "string"],
                 ["projection_method_name", "string"],
                 ["celestial_body_name", "string"]];
@@ -820,6 +911,11 @@ class Proj {
         }
     }
 
+    /**
+     * Still in development
+     * @param {*} args
+     * @returns
+     */
     geodesic_direct(args) {
         const keep = new Keeper(this.proj);
         try {

@@ -1,6 +1,9 @@
 'use strict'
 
-
+/**
+ * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
+ * SPDX-License-Identifier: MIT
+ */
 
 class WorkerBridge {
     static current_script_url = typeof document !== 'undefined' ? document.currentScript.src : ''; // just for browser

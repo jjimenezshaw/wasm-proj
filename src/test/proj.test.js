@@ -1,3 +1,8 @@
+/**
+ * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
+ * SPDX-License-Identifier: MIT
+ */
+
 const assert = require("node:assert");
 const { describe, it, before, after, afterEach } = require('node:test');
 

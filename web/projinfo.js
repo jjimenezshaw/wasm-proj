@@ -1,5 +1,10 @@
 'use strict'
 
+/**
+ * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
+ * SPDX-License-Identifier: MIT
+ */
+
 async function copyToClipboard(targetId, btnElement) {
     const textArea = document.getElementById(targetId);
 
