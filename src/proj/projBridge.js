@@ -36,7 +36,7 @@ class WorkerBridge {
      * @param {string} object_id 
      * @param {number} default_timeout_ms 
      */
-    create_proxy(object_id, default_timeout_ms = 500000) {
+    create_proxy(object_id, default_timeout_ms = 30000) {
         // The handler intercepts property access (method calls)
         const handler = {
             get: (target, prop) => {
