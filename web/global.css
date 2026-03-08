@@ -64,6 +64,9 @@ a { text-decoration: none; }
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
 }
 
 .header-title {
@@ -75,8 +78,11 @@ a { text-decoration: none; }
 
 .header-nav {
     display: flex;
-    gap: 1.5rem;
+    gap: 0.5rem 1.5rem;
     align-items: center;
+
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .header-nav a {
