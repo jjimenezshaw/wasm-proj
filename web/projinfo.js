@@ -85,6 +85,9 @@ function run(proj) {
     const commandLine = document.getElementById('args-text').value;
     const use_network = document.getElementById('use-network').checked;
     const params = parseArgs(commandLine);
+    if (params.length && ['projinfo', 'projinfo.exe'].includes(params[0].toLowerCase())) {
+        params.shift(); // allow the first param to be 'projinfo'
+    }
     const res = proj.projinfo({ params: params, use_network: use_network });
     const ok = '&#9989;';
     const wrong = '&#10060;';
