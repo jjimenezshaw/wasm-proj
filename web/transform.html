@@ -75,7 +75,7 @@
                             <label>Horizontal or 3D CRS <span class="required">*</span></label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="source-horizontal-container">
-                                    <button class="clear-btn" data-clear="source-horizontal-input"
+                                    <button type="button" class="clear-btn" data-clear="source-horizontal-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="source-horizontal-input" placeholder="Type to search..."
                                         autocomplete="off">
@@ -91,7 +91,7 @@
                             <label>Vertical CRS</label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="source-vertical-container">
-                                    <button class="clear-btn" data-clear="source-vertical-input"
+                                    <button type="button" class="clear-btn" data-clear="source-vertical-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="source-vertical-input" placeholder="Type to search..."
                                         autocomplete="off">
@@ -110,11 +110,11 @@
                             <div class="flex-header">
                                 <label for="source-freetext">Custom CRS Definition <span
                                         class="required">*</span></label>
-                                <button class="btn-small" data-load="source-file">Load File</button>
+                                <button type="button" class="btn-small" data-load="source-file">Load File</button>
                                 <input type="file" id="source-file" class="hidden">
                             </div>
                             <div class="textarea-container">
-                                <button class="clear-btn" data-clear="source-freetext"
+                                <button type="button" class="clear-btn" data-clear="source-freetext"
                                     title="Clear field">&times;</button>
                                 <textarea id="source-freetext" class="freetext-text" spellcheck="false"
                                     placeholder="Enter custom CRS definition..."></textarea>
@@ -139,17 +139,17 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Input Coordinates <span class="required">*</span></label>
-                            <button class="btn-small" data-load="coords-file">Load File</button>
+                            <button type="button" class="btn-small" data-load="coords-file">Load File</button>
                             <input type="file" id="coords-file" class="hidden">
                         </div>
                         <div class="textarea-container">
-                            <button class="clear-btn" data-clear="source-coordinates"
+                            <button type="button" class="clear-btn" data-clear="source-coordinates"
                                 title="Clear field">&times;</button>
                             <textarea id="source-coordinates" class="mono-space min-h-80"
                                 placeholder="Enter coordinates here (e.g., X Y Z)..."></textarea>
                         </div>
                         <div class="center-btn-container">
-                            <button type="button" class="btn-small" id="points-in-map"
+                            <button type="button" type="button" class="btn-small" id="points-in-map"
                                 title="Opens a new tab. Look at the console if it doesn't work.">
                                 Show points in a map</button>
                         </div>
@@ -173,7 +173,7 @@
                             <label>Horizontal or 3D CRS <span class="required">*</span></label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="target-horizontal-container">
-                                    <button class="clear-btn" data-clear="target-horizontal-input"
+                                    <button type="button" class="clear-btn" data-clear="target-horizontal-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="target-horizontal-input" placeholder="Type to search..."
                                         autocomplete="off">
@@ -189,7 +189,7 @@
                             <label>Vertical CRS</label>
                             <div class="input-with-link">
                                 <div class="combo-container" id="target-vertical-container">
-                                    <button class="clear-btn" data-clear="target-vertical-input"
+                                    <button type="button" class="clear-btn" data-clear="target-vertical-input"
                                         title="Clear field">&times;</button>
                                     <input type="text" id="target-vertical-input" placeholder="Type to search..."
                                         autocomplete="off">
@@ -208,11 +208,11 @@
                             <div class="flex-header">
                                 <label for="target-freetext">Custom CRS Definition <span
                                         class="required">*</span></label>
-                                <button class="btn-small" data-load="target-file">Load File</button>
+                                <button type="button" class="btn-small" data-load="target-file">Load File</button>
                                 <input type="file" id="target-file" class="hidden">
                             </div>
                             <div class="textarea-container">
-                                <button class="clear-btn" data-clear="target-freetext"
+                                <button type="button" class="clear-btn" data-clear="target-freetext"
                                     title="Clear field">&times;</button>
                                 <textarea id="target-freetext" class="freetext-text" spellcheck="false"
                                     placeholder="Enter custom CRS definition..."></textarea>
@@ -243,7 +243,7 @@
                     <div class="field">
                         <div class="flex-header">
                             <label>Transformed Coordinates</label>
-                            <button class="btn-small" data-copy="target-coordinates">Copy</button>
+                            <button type="button" class="btn-small" data-copy="target-coordinates">Copy</button>
                         </div>
                         <textarea id="target-coordinates" class="mono-space min-h-80" readonly
                             placeholder="Transformed results will appear here..."></textarea>
@@ -252,13 +252,13 @@
             </div>
 
             <div class="action-area">
-                <button id="btn-transform" class="btn-transform" disabled>Transform Coordinates</button>
+                <button type="button" id="btn-transform" class="btn-transform" disabled>Transform Coordinates</button>
             </div>
 
             <div class="full-width-section" id="summary-section">
                 <div class="flex-header summary-header">
                     <h3>Last Operation Summary</h3>
-                    <button class="btn-small" data-copy="transformation-summary">Copy</button>
+                    <button type="button" class="btn-small" data-copy="transformation-summary">Copy</button>
                 </div>
                 <div id="transformation-summary" class="summary-box mono-space">Summary details will appear after
                     transformation...
