@@ -1,23 +1,7 @@
 repos:
-    -   repo: https://github.com/pre-commit/mirrors-clang-format
-        rev: 'v15.0.4'
-        hooks:
-        -   id: clang-format
-            exclude: >
-              (?x)^(
-                data/|
-                schemas/|
-                docs/|
-                include/proj/nn.hpp|
-                include/proj/internal/lru_cache.hpp|
-                include/proj/internal/vendor/nlohmann/json.hpp|
-                src/wkt1_generated_parser.c|
-                src/wkt1_generated_parser.h|
-                src/wkt2_generated_parser.c|
-                src/wkt2_generated_parser.h|
-                src/geodesic.c|
-                src/geodesic.h|
-                src/proj_symbol_rename.h|
-                src/tests/geodtest.c|
-                src/tests/geodsigntest.c
-              )
+- repo: https://github.com/biomejs/pre-commit
+  rev: "v2.4.6"
+  hooks:
+  - id: biome-check
+    additional_dependencies: ["@biomejs/biome@2.4.6"]
+    files: \.(jsx?|tsx?|c(ss|js|ts)|m(js|ts)|jsonc?|html)$

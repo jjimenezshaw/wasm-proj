@@ -4,28 +4,28 @@
     --color-primary: #2563eb;
     --color-primary-hover: #1d4ed8;
     --color-danger: #dc2626;
-    
+
     /* Feedback Backgrounds */
     --bg-success: #d1fae5;
     --bg-error: pink;
 
     /* Text Colors */
-    --text-main: #111827;      /* Standard body text */
-    --text-medium: #1f2937;    /* Buttons, inputs, read-only text */
+    --text-main: #111827; /* Standard body text */
+    --text-medium: #1f2937; /* Buttons, inputs, read-only text */
     --text-secondary: #2d333d; /* Labels, navigation, descriptions */
-    --text-tertiary: #4b5563;  /* Helper text */
-    --text-disabled: #9ca3af;  /* Disabled text, icons, placeholders */
+    --text-tertiary: #4b5563; /* Helper text */
+    --text-disabled: #9ca3af; /* Disabled text, icons, placeholders */
 
     /* Background Colors */
-    --bg-body: #f3f4f6;        /* Main page background */
-    --bg-surface: white;       /* Panels, cards, header */
-    --bg-element: #f9fafb;     /* Link buttons */
+    --bg-body: #f3f4f6; /* Main page background */
+    --bg-surface: white; /* Panels, cards, header */
+    --bg-element: #f9fafb; /* Link buttons */
     --bg-element-alt: #e5e7eb; /* Read-only fields, small buttons */
-    --bg-hover: #d1d5db;       /* Small button hovers, disabled button bg */
+    --bg-hover: #d1d5db; /* Small button hovers, disabled button bg */
 
     /* Borders */
-    --border-main: #d1d5db;    /* Standard inputs, structural borders */
-    --border-light: #e5e7eb;   /* Dividers, subtle borders */
+    --border-main: #d1d5db; /* Standard inputs, structural borders */
+    --border-light: #e5e7eb; /* Dividers, subtle borders */
 
     /* Shadows */
     --shadow-card: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
@@ -44,15 +44,30 @@ body {
     align-items: center;
 }
 
-a { text-decoration: none; }
+a {
+    text-decoration: none;
+}
 
 /* --- Utility Classes --- */
-.hidden { display: none !important; }
-.mono-space { font-family: ui-monospace, monospace; }
-.btn-copied { background-color: var(--bg-success) !important; }
-.w-7rem { width: 7rem !important; }
-.w-3rem { width: 3rem !important; }
-.min-h-80 { min-height: 80px; }
+.hidden {
+    /* biome-ignore lint/complexity/noImportantStyles: asf*/
+    display: none !important;
+}
+.mono-space {
+    font-family: ui-monospace, monospace;
+}
+.btn-copied {
+    background-color: var(--bg-success) !important;
+}
+.w-7rem {
+    width: 7rem !important;
+}
+.w-3rem {
+    width: 3rem !important;
+}
+.min-h-80 {
+    min-height: 80px;
+}
 
 /* --- App Header --- */
 .app-header {
@@ -91,7 +106,9 @@ a { text-decoration: none; }
     font-size: 0.85rem;
     transition: color 0.2s ease;
 }
-.header-nav a:hover { color: var(--color-primary); }
+.header-nav a:hover {
+    color: var(--color-primary);
+}
 
 /* --- GitHub Link --- */
 .github-link {
@@ -129,7 +146,9 @@ a { text-decoration: none; }
     color: var(--text-secondary);
     text-decoration: underline;
     text-decoration-color: var(--border-main);
-    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+    transition:
+        color 0.2s ease,
+        text-decoration-color 0.2s ease;
 }
 
 .app-footer a:hover {
@@ -176,7 +195,8 @@ a { text-decoration: none; }
 }
 
 /* --- Typography --- */
-h2, h3 {
+h2,
+h3 {
     margin-top: 0;
     padding-bottom: 0.25rem;
     border-bottom: 2px solid var(--border-light);
@@ -184,7 +204,9 @@ h2, h3 {
     margin-bottom: 0.75rem;
     font-size: 1.25rem;
 }
-h3 { font-size: 1.1rem; }
+h3 {
+    font-size: 1.1rem;
+}
 
 .description-text {
     margin-top: 0;
@@ -193,8 +215,18 @@ h3 { font-size: 1.1rem; }
     line-height: 1.5;
 }
 
+label {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
 /* --- Form Elements --- */
-.field { margin-bottom: 0.75rem; }
+.field {
+    margin-bottom: 0.75rem;
+}
 .field-inline {
     display: flex;
     align-items: center;
@@ -206,23 +238,24 @@ h3 { font-size: 1.1rem; }
     white-space: nowrap;
 }
 
-label {
-    display: block;
-    margin-bottom: 0.2rem;
+.helper-text {
     font-size: 0.8rem;
-    color: var(--text-secondary);
-    font-weight: 600;
+    color: var(--text-tertiary);
 }
-
-.helper-text { font-size: 0.8rem; color: var(--text-tertiary); }
-.required { color: var(--color-danger); margin-left: 0.1rem; font-weight: bold; }
+.required {
+    color: var(--color-danger);
+    margin-left: 0.1rem;
+    font-weight: bold;
+}
 .flex-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.2rem;
 }
-.flex-header label { margin-bottom: 0; }
+.flex-header label {
+    margin-bottom: 0;
+}
 
 .checkbox-group {
     display: flex;
@@ -237,7 +270,9 @@ label {
     font-size: 0.9rem;
     cursor: help;
 }
-.checkbox-label input { margin-right: 0.4rem; }
+.checkbox-label input {
+    margin-right: 0.4rem;
+}
 
 .radio-group {
     display: flex;
@@ -253,9 +288,13 @@ label {
     font-size: 0.875rem;
     cursor: pointer;
 }
-.radio-label input { margin-right: 0.25rem; }
+.radio-label input {
+    margin-right: 0.25rem;
+}
 
-input[type="text"], input[type="number"], textarea {
+input[type="text"],
+input[type="number"],
+textarea {
     width: 100%;
     padding: 0.4rem;
     border: 1px solid var(--border-main);
@@ -265,21 +304,25 @@ input[type="text"], input[type="number"], textarea {
     font-size: 0.9rem;
 }
 
-input.invalid { background-color: var(--bg-error); }
+input.invalid {
+    background-color: var(--bg-error);
+}
 
-textarea { resize: vertical; min-height: 60px; }
+textarea {
+    resize: vertical;
+    min-height: 60px;
+}
 textarea[readonly] {
     background-color: var(--bg-element-alt);
     cursor: default;
     color: var(--text-medium);
 }
-textarea[readonly]:focus { outline: none; border-color: var(--border-main); }
+textarea[readonly]:focus {
+    outline: none;
+    border-color: var(--border-main);
+}
 
 /* --- Clear Buttons & Textarea Containers --- */
-.textarea-container { position: relative; width: 100%; }
-.textarea-container textarea { padding-right: 32px; padding-left: 0.4rem; }
-.textarea-container .clear-btn { top: 10px; right: 20px; }
-
 .clear-btn {
     position: absolute;
     right: 8px;
@@ -293,11 +336,32 @@ textarea[readonly]:focus { outline: none; border-color: var(--border-main); }
     padding: 0;
     z-index: 2;
 }
-.clear-btn:hover { color: var(--color-danger); }
+.clear-btn:hover {
+    color: var(--color-danger);
+}
+
+.textarea-container {
+    position: relative;
+    width: 100%;
+}
+.textarea-container textarea {
+    padding-right: 32px;
+    padding-left: 0.4rem;
+}
+.textarea-container .clear-btn {
+    top: 10px;
+    right: 20px;
+}
 
 /* --- Combobox --- */
-.combo-container { position: relative; flex: 1; }
-.combo-container input[type="text"] { padding-right: 28px; padding-left: 0.4rem; }
+.combo-container {
+    position: relative;
+    flex: 1;
+}
+.combo-container input[type="text"] {
+    padding-right: 28px;
+    padding-left: 0.4rem;
+}
 .combo-dropdown {
     display: none;
     position: absolute;
@@ -311,7 +375,9 @@ textarea[readonly]:focus { outline: none; border-color: var(--border-main); }
     z-index: 10;
     box-shadow: var(--shadow-dropdown);
 }
-.combo-container.open .combo-dropdown { display: block; }
+.combo-container.open .combo-dropdown {
+    display: block;
+}
 select.combo-select {
     width: 100%;
     border: none;
@@ -320,8 +386,13 @@ select.combo-select {
     font-family: inherit;
     background: transparent;
 }
-select.combo-select option { padding: 6px; cursor: pointer; font-size: 0.9rem; }
-select.combo-select option:hover, select.combo-select option:checked {
+select.combo-select option {
+    padding: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+select.combo-select option:hover,
+select.combo-select option:checked {
     background-color: var(--color-primary);
     color: white;
 }
@@ -337,7 +408,9 @@ select.combo-select option:hover, select.combo-select option:checked {
     cursor: pointer;
     transition: background 0.2s;
 }
-.btn-small:hover { background-color: var(--bg-hover); }
+.btn-small:hover {
+    background-color: var(--bg-hover);
+}
 
 .btn-transform {
     background-color: var(--color-primary);
@@ -349,21 +422,38 @@ select.combo-select option:hover, select.combo-select option:checked {
     border-radius: 6px;
     cursor: pointer;
     box-shadow: var(--shadow-btn);
-    transition: background-color 0.2s, transform 0.1s;
+    transition:
+        background-color 0.2s,
+        transform 0.1s;
 }
-.btn-transform:hover:not(:disabled) { background-color: var(--color-primary-hover); }
-.btn-transform:active:not(:disabled) { transform: translateY(2px); }
+.btn-transform:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+}
+.btn-transform:active:not(:disabled) {
+    transform: translateY(2px);
+}
 .btn-transform:disabled {
     background-color: var(--bg-hover);
     color: var(--text-disabled);
     cursor: not-allowed;
     box-shadow: none;
 }
-.action-area { text-align: center; margin-bottom: 1rem; }
-.center-btn-container { text-align: center; margin-top: 0.75rem; }
+.action-area {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+.center-btn-container {
+    text-align: center;
+    margin-top: 0.75rem;
+}
 
 /* --- Links & Icons --- */
-.input-with-link { display: flex; gap: 0.5rem; align-items: center; width: 100%; }
+.input-with-link {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+}
 .info-link {
     display: flex;
     align-items: center;
@@ -377,8 +467,11 @@ select.combo-select option:hover, select.combo-select option:checked {
     font-size: 1.1rem;
     transition: background 0.2s;
 }
-.info-link:hover { background: var(--bg-element-alt); }
-.info-link.disabled, .disabled {
+.info-link:hover {
+    background: var(--bg-element-alt);
+}
+.info-link.disabled,
+.disabled {
     pointer-events: none;
     opacity: 0.4;
     filter: grayscale(100%);
@@ -390,7 +483,11 @@ select.combo-select option:hover, select.combo-select option:checked {
     padding-bottom: 0.25rem;
     margin-bottom: 0.75rem;
 }
-.summary-header h3 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.summary-header h3 {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
 .summary-box {
     width: 100%;
     padding: 0.5rem;
@@ -416,9 +513,18 @@ select.combo-select option:hover, select.combo-select option:checked {
     animation: pulse 3.5s infinite;
 }
 @keyframes pulse {
-    0% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.9); }
-    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-    100% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.9); }
+    0% {
+        opacity: 0.3;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    100% {
+        opacity: 0.3;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
 }
 .loading-state {
     opacity: 0.4;
@@ -429,7 +535,16 @@ select.combo-select option:hover, select.combo-select option:checked {
 
 /* --- Media Queries --- */
 @media (max-width: 768px) {
-    .app-header { flex-direction: column; gap: 0.5rem; }
-    .container { flex-direction: column; }
-    .field-inline { flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .app-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .container {
+        flex-direction: column;
+    }
+    .field-inline {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+    }
 }

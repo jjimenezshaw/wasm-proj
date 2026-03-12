@@ -1,12 +1,7 @@
-'use strict'
-
-/**
+/*
  * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
  * SPDX-License-Identifier: MIT
  */
-
-// Safari cannot change the display in options in select. So do a heavier work.
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 async function copyToClipboard(targetId, btnElement) {
     const element = document.getElementById(targetId);
@@ -34,7 +29,7 @@ function handleFileLoad(event, targetId) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = (e) => {
         const textArea = document.getElementById(targetId);
         textArea.value = e.target.result;
 
@@ -60,7 +55,9 @@ function updateURLParams() {
     params.forEach((value, key) => {
         if (value === '') keysToDelete.push(key);
     });
-    keysToDelete.forEach(key => params.delete(key));
+    keysToDelete.forEach((key) => {
+        params.delete(key);
+    });
 
     const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -93,14 +90,14 @@ function validateForm(doNotUpdateUrl = false) {
             const dp = document.getElementById(`decimal-places`);
             const inverse = document.getElementById('inverse').checked;
             tr = proj.create_transformer_from_pipeline({ pipeline: pipeline });
-            let ang = tr.angular_output({ inverse: inverse });
-            let deg = tr.degree_output({ inverse: inverse });
+            const ang = tr.angular_output({ inverse: inverse });
+            const deg = tr.degree_output({ inverse: inverse });
             if (ang || deg) {
                 dp.value = 9;
             } else {
                 dp.value = 4;
             }
-        } catch (e) {
+        } catch (_e) {
         } finally {
             proj.log_level(prev_log_level);
             tr?.dispose();
@@ -109,8 +106,7 @@ function validateForm(doNotUpdateUrl = false) {
         btn.disabled = true;
     }
 
-    if (!doNotUpdateUrl)
-        updateURLParams();
+    if (!doNotUpdateUrl) updateURLParams();
 }
 
 function clearField(targetId) {
@@ -123,22 +119,22 @@ function clearField(targetId) {
 }
 
 function parseInputCoordinates(sourceCoords) {
-    const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
-    let points = []
-    coordLines.forEach(line => {
-        let splitted = []
-        for (let separator of [';', ',', '\t', ' ']) {
+    const coordLines = sourceCoords.split('\n').filter((line) => line.trim().length > 0);
+    const points = [];
+    coordLines.forEach((line) => {
+        let splitted = [];
+        for (const separator of [';', ',', '\t', ' ']) {
             splitted = line.split(separator);
             if (splitted.length >= 2) {
                 break;
             }
         }
         // replace ',' as decimal separator with ';' column separator
-        splitted = splitted.map(e => e.replace(',', '.'));
-        splitted = splitted.filter(n => n) // remove empty elements
-        const floats = splitted.map(e => Number.parseFloat(e));
+        splitted = splitted.map((e) => e.replace(',', '.'));
+        splitted = splitted.filter((n) => n); // remove empty elements
+        const floats = splitted.map((e) => Number.parseFloat(e));
         points.push(floats);
-    })
+    });
     return points;
 }
 
@@ -148,7 +144,7 @@ async function handleTransform(proj_worker) {
     if (!sourceCoords.trim()) return;
 
     const output = document.getElementById('target-coordinates');
-    output.value = '... computing ...'
+    output.value = '... computing ...';
 
     const inverse = document.getElementById('inverse').checked;
     const useNetwork = document.getElementById('use-network').checked;
@@ -166,25 +162,30 @@ async function handleTransform(proj_worker) {
                 use_network: useNetwork,
             });
         } catch (e) {
-            output.value = 'Error:' + e;
+            output.value = `Error:${e}`;
             return;
         }
         try {
-            const transformed = await transformer.transform({ points: points, inverse: inverse });
+            const transformed = await transformer.transform({
+                points: points,
+                inverse: inverse,
+            });
             const dp = document.getElementById(`decimal-places`).value;
 
-            let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
+            const res = transformed
+                .map((point) => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' '))
+                .join('\n');
             output.value = res;
         } catch (e) {
-            output.value = 'Error:' + e;
+            output.value = `Error:${e}`;
             return;
         }
         try {
             const lastOp = await transformer.get_last_operation();
             const date = new Date().toLocaleString();
-            summaryBox.innerText = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
+            summaryBox.innerText = `${lastOp.description}\n\n${lastOp.proj_5}\n\n${date}`;
         } catch (e) {
-            summaryBox.innerText = 'Error: ' + e;
+            summaryBox.innerText = `Error: ${e}`;
         }
     } finally {
         if (transformer) await transformer.dispose();
@@ -192,8 +193,7 @@ async function handleTransform(proj_worker) {
 }
 
 function setupEventListeners(proj_worker) {
-
-    ['inverse', 'use-network'].forEach(id => {
+    ['inverse', 'use-network'].forEach((id) => {
         document.getElementById(id).addEventListener('change', () => validateForm());
     });
 
@@ -202,19 +202,24 @@ function setupEventListeners(proj_worker) {
     document.getElementById('pipeline-file').addEventListener('change', (e) => handleFileLoad(e, 'pipeline-text'));
     document.getElementById('coords-file').addEventListener('change', (e) => handleFileLoad(e, 'source-coordinates'));
 
-    document.querySelectorAll('[data-clear]').forEach(btn => {
-        btn.addEventListener('click', function() { clearField(this.getAttribute('data-clear')); });
+    document.querySelectorAll('[data-clear]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            clearField(this.getAttribute('data-clear'));
+        });
     });
-    document.querySelectorAll('[data-load]').forEach(btn => {
-        btn.addEventListener('click', function () { document.getElementById(this.getAttribute('data-load')).click(); });
+    document.querySelectorAll('[data-load]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            document.getElementById(this.getAttribute('data-load')).click();
+        });
     });
-    document.querySelectorAll('[data-copy]').forEach(btn => {
-        btn.addEventListener('click', function() { copyToClipboard(this.getAttribute('data-copy'), this); });
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            copyToClipboard(this.getAttribute('data-copy'), this);
+        });
     });
 
     document.getElementById('pipeline-text').addEventListener('input', () => validateForm());
     document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
-
 }
 
 let proj;
@@ -224,7 +229,7 @@ async function load() {
     const loader = document.getElementById('loading-indicator');
     loader.classList.remove('hidden');
 
-    console.log("Downloading resources...", Date());
+    console.log('Downloading resources...', Date());
 
     proj = new Proj();
     await proj.init();
@@ -245,9 +250,9 @@ async function load() {
 
     loader.classList.add('hidden');
     appContent.classList.remove('loading-state');
-    console.log("Ready.", Date());
+    console.log('Ready.', Date());
 
     if (run) handleTransform(proj_worker);
-};
+}
 
 window.addEventListener('load', load);

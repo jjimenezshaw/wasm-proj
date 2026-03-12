@@ -1,5 +1,3 @@
-'use strict'
-
 /*
  * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
  * SPDX-License-Identifier: MIT
@@ -15,13 +13,13 @@ class WorkerBridge {
 
         if (is_node) {
             // Node.js Worker Setup
-            worker_path = worker_path ?? `${__dirname}/projWorker.js`
+            worker_path = worker_path ?? `${__dirname}/projWorker.js`;
             const { Worker } = require('node:worker_threads');
             this.worker = new Worker(worker_path);
             this.worker.on('message', (data) => this._handle_message({ data }));
         } else {
             // Browser Web Worker Setup
-            worker_path = worker_path ?? new URL("./projWorker.js", WorkerBridge.current_script_url);
+            worker_path = worker_path ?? new URL('./projWorker.js', WorkerBridge.current_script_url);
             this.worker = new globalThis.Worker(worker_path);
             this.worker.onmessage = (e) => this._handle_message(e);
         }
@@ -33,13 +31,13 @@ class WorkerBridge {
 
     /**
      * Creates a Proxy that acts as the remote object.
-     * @param {string} object_id 
-     * @param {number} default_timeout_ms 
+     * @param {string} object_id
+     * @param {number} default_timeout_ms
      */
     create_proxy(object_id, default_timeout_ms = 30000) {
         // The handler intercepts property access (method calls)
         const handler = {
-            get: (target, prop) => {
+            get: (_target, prop) => {
                 // Intercept a special property to reveal the object_id
                 if (prop === '__object_id') return object_id;
 
@@ -50,7 +48,7 @@ class WorkerBridge {
                 return (...args) => {
                     return this.execute(object_id, prop, args, default_timeout_ms);
                 };
-            }
+            },
         };
         return new Proxy({}, handler);
     }
@@ -59,7 +57,7 @@ class WorkerBridge {
     with_timeout(proxy, timeout_ms) {
         const id = proxy.__object_id;
         if (!id) {
-            throw new Error("Provided object is not a valid Worker Proxy");
+            throw new Error('Provided object is not a valid Worker Proxy');
         }
         return this.create_proxy(id, timeout_ms);
     }
@@ -75,13 +73,17 @@ class WorkerBridge {
                 }
             }, timeout_ms);
 
-            this.pending_requests.set(correlation_id, { resolve, reject, timer });
+            this.pending_requests.set(correlation_id, {
+                resolve,
+                reject,
+                timer,
+            });
 
             this.worker.postMessage({
                 correlation_id,
                 object_id,
                 method,
-                args
+                args,
             });
         });
     }
@@ -96,14 +98,14 @@ class WorkerBridge {
         this.worker.terminate();
 
         // 2. Reject any pending promises so they don't hang forever
-        for (const [id, request] of this.pending_requests.entries()) {
+        for (const [_id, request] of this.pending_requests.entries()) {
             clearTimeout(request.timer);
-            request.reject(new Error("Worker was terminated."));
+            request.reject(new Error('Worker was terminated.'));
         }
 
         // 3. Clear the map
         this.pending_requests.clear();
-        console.log("Worker connection closed.");
+        console.log('Worker connection closed.');
     }
 
     _handle_message(event) {

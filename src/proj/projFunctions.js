@@ -1,5 +1,3 @@
-'use strict'
-
 /*
  * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
  * SPDX-License-Identifier: MIT
@@ -19,7 +17,7 @@ class Keeper {
      */
     constructor(proj, debug = false) {
         if (!proj) {
-            throw new Error("Empty proj ptr. Have you called Proj.init()?");
+            throw new Error('Empty proj ptr. Have you called Proj.init()?');
         }
 
         this.proj = proj;
@@ -27,7 +25,7 @@ class Keeper {
         this.to_free = [];
         this.to_destroy = [];
         this.special_destroy = [];
-    };
+    }
 
     /**
      * Adds a pointer to take care of it, destroying or freeing it later on 'clean()'.
@@ -37,16 +35,14 @@ class Keeper {
      */
     add(ptr, proj_destroy = true) {
         if (proj_destroy) {
-            if (this.debug)
-                console.debug("add destroy", ptr);
+            if (this.debug) console.debug('add destroy', ptr);
             this.to_destroy.push(ptr);
         } else {
-            if (this.debug)
-                console.debug("add free", ptr);
+            if (this.debug) console.debug('add free', ptr);
             this.to_free.push(ptr);
         }
         return ptr;
-    };
+    }
 
     /**
      * Calls a proj function with those parameters,
@@ -69,8 +65,7 @@ class Keeper {
      */
     call_destroyer(name, destroyer, ...args) {
         const ptr = this.proj[name](...args);
-        if (this.debug)
-            console.debug("add special destroyer", ptr, destroyer);
+        if (this.debug) console.debug('add special destroyer', ptr, destroyer);
         this.special_destroy.push([destroyer, ptr]);
         return ptr;
     }
@@ -83,7 +78,7 @@ class Keeper {
     malloc(ptr_size) {
         const ptr = this.proj._malloc(ptr_size);
         return this.add(ptr, false);
-    };
+    }
 
     /**
      * Converts a javascript string into a new UTF8, and resgisters to be freed
@@ -93,7 +88,7 @@ class Keeper {
     string(str) {
         const ptr = this.proj.stringToNewUTF8(str);
         return this.add(ptr, false);
-    };
+    }
 
     /**
      * Destroys every pointer registered.
@@ -102,29 +97,26 @@ class Keeper {
         this.special_destroy.reverse();
         for (const p of this.special_destroy) {
             const [destroyer, ptr] = p;
-            if (this.debug)
-                console.debug("call special destroyer", ptr, destroyer);
+            if (this.debug) console.debug('call special destroyer', ptr, destroyer);
             this.proj[destroyer](ptr);
         }
         this.special_destroy = [];
 
         this.to_destroy.reverse();
         for (const p of this.to_destroy) {
-            if (this.debug)
-                console.debug("call destroy", p);
+            if (this.debug) console.debug('call destroy', p);
             this.proj._proj_destroy(p);
         }
         this.to_destroy = [];
 
         this.to_free.reverse();
         for (const p of this.to_free) {
-            if (this.debug)
-                console.debug("call free", p);
+            if (this.debug) console.debug('call free', p);
             this.proj._free(p);
         }
         this.to_free = [];
-    };
-};
+    }
+}
 
 function struct_ptr_to_dict(proj, struct_ptr, params) {
     /// params is [[name, type]]
@@ -132,34 +124,34 @@ function struct_ptr_to_dict(proj, struct_ptr, params) {
     ///   string, b32, i32, double
     /// if name == __ , it is ignored. Needed to count the offset
     let offset = 0;
-    const dummy = "__";
-    const res = {}
+    const dummy = '__';
+    const res = {};
     for (const p of params) {
         const [name, type] = p;
         let v;
         switch (type) {
-            case ("string"):
+            case 'string':
                 v = proj.getValue(struct_ptr + offset, '*');
                 offset += 4;
                 res[name] = proj.UTF8ToString(v);
                 break;
-            case ("b32"):
+            case 'b32':
                 v = proj.getValue(struct_ptr + offset, 'i32');
                 offset += 4;
                 res[name] = !!v;
                 break;
-            case ("i32"):
+            case 'i32':
                 v = proj.getValue(struct_ptr + offset, 'i32');
                 offset += 4;
                 res[name] = v;
                 break;
-            case ("double"):
+            case 'double':
                 v = proj.getValue(struct_ptr + offset, 'double');
                 offset += 8;
                 res[name] = v;
                 break;
             default:
-                throw new Error(`Unknown type [${type}] in struct_ptr_to_dict`)
+                throw new Error(`Unknown type [${type}] in struct_ptr_to_dict`);
         }
     }
     delete res[dummy];
@@ -177,7 +169,7 @@ class Transformer {
         const use_network = this.proj._proj_context_is_network_enabled(this.ctx);
         const is_worker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
         if (use_network && !is_worker) {
-            console.warn("Using a PROJ transformer in the main thread with 'use_network' may not work as expected.")
+            console.warn("Using a PROJ transformer in the main thread with 'use_network' may not work as expected.");
         }
         this.last_op_inverse = false;
     }
@@ -227,8 +219,8 @@ class Transformer {
     }
 
     /**
-     * 
-     * @param {Object} args 
+     *
+     * @param {Object} args
      * @param {number[][]} args.points - vector of points to transform
      * @param {boolean} [args.inverse] - apply the inverse operation.
      * @returns {number[][]}
@@ -241,7 +233,7 @@ class Transformer {
             const inverse = args.inverse;
             this.last_op_inverse = inverse;
 
-            let coord_ptr = keep.malloc(32 * number_of_points); // 4 doubles.
+            const coord_ptr = keep.malloc(32 * number_of_points); // 4 doubles.
             const coordView = new Float64Array(this.proj.HEAPF64.buffer, coord_ptr, 4 * number_of_points);
             for (let p = 0; p < number_of_points; p++) {
                 coordView[p * 4 + 0] = points[p][0];
@@ -251,15 +243,15 @@ class Transformer {
             }
 
             const r = this.proj._proj_trans_array(this.P, inverse ? -1 : 1, number_of_points, coord_ptr);
-            if (r != 0) {
+            if (r !== 0) {
                 const msg_ptr = this.proj._proj_context_errno_string(this.ctx, r);
                 const msg = this.proj.UTF8ToString(msg_ptr);
                 throw new Error(`_proj_trans_array error ${msg}`);
             }
 
-            let res = []
+            const res = [];
             for (let p = 0; p < number_of_points; p++) {
-                let coord = [];
+                const coord = [];
                 coord.push(coordView[p * 4 + 0]);
                 coord.push(coordView[p * 4 + 1]);
                 if (points[p].length > 2) coord.push(coordView[p * 4 + 2]);
@@ -268,11 +260,11 @@ class Transformer {
             }
             return res;
         } finally {
-            keep.clean()
+            keep.clean();
         }
     }
 
-    /** 
+    /**
      * @typedef {Object} get_last_operation_result
      * @property {string} id - id of the operation
      * @property {string} description
@@ -288,13 +280,13 @@ class Transformer {
      * @returns {get_last_operation_result} - last operation information
      */
     get_last_operation() {
-        let keep = new Keeper(this.proj);
+        const keep = new Keeper(this.proj);
         try {
             // https://proj.org/en/stable/development/reference/datatypes.html#c.PJ_PROJ_INFO
             const struct_ptr = keep.malloc(64); // bigger just in case
-            let operation_ptr = keep.call("_proj_trans_get_last_used_operation", this.P);
+            let operation_ptr = keep.call('_proj_trans_get_last_used_operation', this.P);
             if (this.last_op_inverse) {
-                operation_ptr = keep.call("_proj_coordoperation_create_inverse", this.ctx, operation_ptr);
+                operation_ptr = keep.call('_proj_coordoperation_create_inverse', this.ctx, operation_ptr);
             }
 
             this.proj._proj_pj_info(struct_ptr, operation_ptr);
@@ -307,7 +299,7 @@ class Transformer {
             const PROJ_5 = 0;
             const PJ_WKT2_2019 = 2;
 
-            const option_str = "MULTILINE=YES";
+            const option_str = 'MULTILINE=YES';
             const option_str_ptr = keep.string(option_str);
 
             // We need 8 bytes (two 32-bit pointers: one for the string, one for NULL)
@@ -333,7 +325,7 @@ class Transformer {
             keep.clean();
         }
     }
-};
+}
 
 /** Class for the general PROJ wasm wrapper. Do not forget to call init() */
 class Proj {
@@ -372,17 +364,17 @@ class Proj {
      */
     async init(on_loaded, on_failed, options) {
         if (typeof ProjModuleFactory === 'undefined') {
-            throw new Error(
-                "'ProjModuleFactory' is not defined. Have you loaded projModule.js?");
+            throw new Error("'ProjModuleFactory' is not defined. Have you loaded projModule.js?");
         }
         let wasm_dir = options?.wasm_dir;
         const module_config = {
             // locateFile intercepts requests for the .wasm file
-            locateFile: function (fileName, defaultPrefix) {
+            locateFile: (fileName, defaultPrefix) => {
                 if (fileName.endsWith('.wasm')) {
-                    const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+                    const is_node =
+                        typeof process !== 'undefined' && process.versions !== null && process.versions.node !== null;
                     if (is_node) {
-                        const path = require('path');
+                        const path = require('node:path');
                         return path.join(__dirname, 'wasm', fileName);
                     } else {
                         const is_worker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
@@ -392,7 +384,7 @@ class Proj {
                             wasm_dir = 'wasm/';
                         } else {
                             const base_url = Proj.current_script_url;
-                            wasm_dir = base_url.substring(0, base_url.lastIndexOf('/') + 1) + 'wasm/';
+                            wasm_dir = `${base_url.substring(0, base_url.lastIndexOf('/') + 1)}wasm/`;
                         }
                         return wasm_dir + fileName;
                     }
@@ -406,17 +398,17 @@ class Proj {
             this.init_promise = ProjModuleFactory(module_config);
         }
         return this.init_promise
-            .then(module => {
+            .then((module) => {
                 this.proj = this.proj ?? module;
                 this.ctx = this.ctx ?? this.proj._proj_context_create();
                 this.ptr_size = this.proj._get_ptr_size();
-                if (this.ptr_size != 4) {
-                    console.warn("Detected WASM64. Is this code prepared for that?")
+                if (this.ptr_size !== 4) {
+                    console.warn('Detected WASM64. Is this code prepared for that?');
                 }
 
                 on_loaded?.(module);
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error(`ProjModuleFactory init error: ${err}`);
                 on_failed?.(err);
             });
@@ -426,7 +418,7 @@ class Proj {
     // obviously you cannot use it anymore, until you call "init" again.
     dispose() {
         if (this.init_promise && !this.proj) {
-            console.error("Proj.dispose called during initialization. Unexpected behaviour.")
+            console.error('Proj.dispose called during initialization. Unexpected behaviour.');
         }
 
         if (this.geod_geodesic_ptr) {
@@ -451,11 +443,11 @@ class Proj {
     // Helper function to read char**, like in _proj_cs_get_axis_info
     _charstarstar_to_string(ptr) {
         if (!ptr) {
-            return "";
+            return '';
         }
         const str_ptr = this.proj.getValue(ptr, '*');
         if (!str_ptr) {
-            return "";
+            return '';
         }
         const str = this.proj.UTF8ToString(str_ptr);
         return str;
@@ -463,9 +455,8 @@ class Proj {
 
     // return: { compilation_date, major, minor, patch, release, version }
     proj_info() {
-        let r = this.proj.proj_info_ems();
-        r.compilation_date =
-            this.proj.UTF8ToString(this.proj._get_compilation_date());
+        const r = this.proj.proj_info_ems();
+        r.compilation_date = this.proj.UTF8ToString(this.proj._get_compilation_date());
         return r;
     }
 
@@ -477,10 +468,8 @@ class Proj {
     PJ_LOG_TELL = 4,
     */
     log_level(level) {
-        if (level === undefined || level === null)
-            level = 4;
-        if (level < 0 || level > 4)
-            throw new Error(`Invalid PROJ log level [${level}]`);
+        if (level === undefined || level === null) level = 4;
+        if (level < 0 || level > 4) throw new Error(`Invalid PROJ log level [${level}]`);
         return this.proj._proj_log_level(this.ctx, level);
     }
 
@@ -494,21 +483,20 @@ class Proj {
      * @returns {{rc: number, msg: string}} - Return code and message.
      */
     projinfo(args) {
-        let msg = "";
-        const callback = (level, message) => { msg += message; };
+        let msg = '';
+        const callback = (_level, message) => {
+            msg += message;
+        };
 
-        const network_enabled =
-            this.proj._proj_context_is_network_enabled(this.ctx);
+        const network_enabled = this.proj._proj_context_is_network_enabled(this.ctx);
         try {
-            if (args.use_network != network_enabled)
-                this.proj._proj_context_set_enable_network(this.ctx,
-                    args.use_network);
+            if (!!args.use_network !== !!network_enabled)
+                this.proj._proj_context_set_enable_network(this.ctx, args.use_network);
             const rc = this.proj.projinfo_ems(this.ctx, args.params, callback);
             return { rc: rc, msg: msg };
         } finally {
-            if (args.use_network != network_enabled)
-                this.proj._proj_context_set_enable_network(this.ctx,
-                    network_enabled);
+            if (!!args.use_network !== !!network_enabled)
+                this.proj._proj_context_set_enable_network(this.ctx, network_enabled);
         }
     }
 
@@ -532,32 +520,40 @@ class Proj {
         if (!args?.crs?.length) {
             throw Error(`args.crs is mandatory.`);
         }
-        if (typeof args.crs != 'string') {
+        if (typeof args.crs !== 'string') {
             throw Error(`args.crs must be a string.`);
         }
         const ptr_size = this.ptr_size;
         const double_size = 8; // Doubles are 8 bytes
         const PJ_TYPE_COMPOUND_CRS = 16; // from proj.h
-        let keep = new Keeper(this.proj);
+        const keep = new Keeper(this.proj);
         let res = {};
         try {
             // this function declaration keeps the meaning of "this" from the class
             const internal_axes = (P_crs) => {
-                const P_cs = keep.call("_proj_crs_get_coordinate_system",
-                    this.ctx, P_crs);
+                const P_cs = keep.call('_proj_crs_get_coordinate_system', this.ctx, P_crs);
                 const axis_count = this.proj._proj_cs_get_axis_count(this.ctx, P_cs);
                 const outNamePtr = keep.malloc(ptr_size);
                 const outAbbrevPtr = keep.malloc(ptr_size);
                 const outDirectionPtr = keep.malloc(ptr_size);
                 const outConvFactorPtr = keep.malloc(double_size);
                 const outUnitPtr = keep.malloc(ptr_size);
-                let res = [];
+                const res = [];
                 for (let i = 0; i < axis_count; i++) {
                     const r = this.proj._proj_cs_get_axis_info(
-                        this.ctx, P_cs, i, outNamePtr, outAbbrevPtr,
-                        outDirectionPtr, outConvFactorPtr, outUnitPtr, 0, 0);
-                    if (r != 1) {
-                        throw new Error("error calling proj_cs_get_axis_info");
+                        this.ctx,
+                        P_cs,
+                        i,
+                        outNamePtr,
+                        outAbbrevPtr,
+                        outDirectionPtr,
+                        outConvFactorPtr,
+                        outUnitPtr,
+                        0,
+                        0,
+                    );
+                    if (r !== 1) {
+                        throw new Error('error calling proj_cs_get_axis_info');
                     }
                     const d = {
                         name: this._charstarstar_to_string(outNamePtr),
@@ -565,16 +561,16 @@ class Proj {
                         direction: this._charstarstar_to_string(outDirectionPtr),
                         conv_factor: this.proj.getValue(outConvFactorPtr, 'double'),
                         unit: this._charstarstar_to_string(outUnitPtr),
-                    }
+                    };
                     res.push(d);
                 }
                 return res;
             };
             const sourceCRS = keep.string(args.crs);
-            const P_crs = keep.call("_proj_create", this.ctx, sourceCRS);
-            if (this.proj._proj_get_type(P_crs) == PJ_TYPE_COMPOUND_CRS) {
-                const P_crs_0 = keep.call("_proj_crs_get_sub_crs", this.ctx, P_crs, 0);
-                const P_crs_1 = keep.call("_proj_crs_get_sub_crs", this.ctx, P_crs, 1);
+            const P_crs = keep.call('_proj_create', this.ctx, sourceCRS);
+            if (this.proj._proj_get_type(P_crs) === PJ_TYPE_COMPOUND_CRS) {
+                const P_crs_0 = keep.call('_proj_crs_get_sub_crs', this.ctx, P_crs, 0);
+                const P_crs_1 = keep.call('_proj_crs_get_sub_crs', this.ctx, P_crs, 1);
                 res = internal_axes(P_crs_0);
                 const res1 = internal_axes(P_crs_1);
                 res = res.concat(res1);
@@ -605,13 +601,13 @@ class Proj {
         if (!args?.source_crs?.length) {
             throw Error(`args.source_crs is mandatory.`);
         }
-        if (typeof args.source_crs != 'string') {
+        if (typeof args.source_crs !== 'string') {
             throw Error(`args.source_crs must be a string.`);
         }
         if (!args?.target_crs?.length) {
             throw Error(`args.target_crs is mandatory.`);
         }
-        if (typeof args.target_crs != 'string') {
+        if (typeof args.target_crs !== 'string') {
             throw Error(`args.target_crs must be a string.`);
         }
         const keep = new Keeper(this.proj);
@@ -620,26 +616,26 @@ class Proj {
             const target_crs = keep.string(args?.target_crs);
             const area = 0;
 
-            let P_src = keep.call("_proj_create", this.ctx, source_crs);
-            let P_tgt = keep.call("_proj_create", this.ctx, target_crs);
+            let P_src = keep.call('_proj_create', this.ctx, source_crs);
+            let P_tgt = keep.call('_proj_create', this.ctx, target_crs);
             if (args?.promote_to_3D) {
-                P_src = keep.call("_proj_crs_promote_to_3D", this.ctx, 0, P_src);
-                P_tgt = keep.call("_proj_crs_promote_to_3D", this.ctx, 0, P_tgt);
+                P_src = keep.call('_proj_crs_promote_to_3D', this.ctx, 0, P_src);
+                P_tgt = keep.call('_proj_crs_promote_to_3D', this.ctx, 0, P_tgt);
             }
             const process_epoch = (P, epoch, name) => {
                 let P_out = P;
-                if (epoch !== null && epoch !== undefined && !isNaN(epoch)) {
-                    if (typeof epoch !== "number") {
-                        throw new Error(`Epoch ${epoch} must be a float`)
+                if (epoch !== null && epoch !== undefined && !Number.isNaN(epoch)) {
+                    if (typeof epoch !== 'number') {
+                        throw new Error(`Epoch ${epoch} must be a float`);
                     }
-                    P_out = keep.call("_proj_coordinate_metadata_create", this.ctx, P, epoch);
-                    if (P_out == 0) {
+                    P_out = keep.call('_proj_coordinate_metadata_create', this.ctx, P, epoch);
+                    if (P_out === 0) {
                         P_out = P;
-                        console.error(`Apparently ${name} is not dynamic. Do not use an epoch.`)
+                        console.error(`Apparently ${name} is not dynamic. Do not use an epoch.`);
                     }
                 }
                 return P_out;
-            }
+            };
             P_src = process_epoch(P_src, args?.source_epoch, args?.source_crs);
             P_tgt = process_epoch(P_tgt, args?.target_epoch, args?.target_crs);
 
@@ -648,7 +644,7 @@ class Proj {
             let P = this.proj._proj_create_crs_to_crs_from_pj(ctx, P_src, P_tgt, area, 0);
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
-                throw new Error("proj_create_crs_to_crs_from_pj returned NULL.");
+                throw new Error('proj_create_crs_to_crs_from_pj returned NULL.');
             }
             if (args.always_xy) {
                 const Q = this.proj._proj_normalize_for_visualization(ctx, P);
@@ -656,7 +652,7 @@ class Proj {
                 P = Q;
                 if (P === 0) {
                     this.proj._proj_destroy(ctx);
-                    throw new Error("proj_normalize_for_visualization returned NULL.");
+                    throw new Error('proj_normalize_for_visualization returned NULL.');
                 }
             }
             // the ownership of P and ctx is transfered to the transformer
@@ -678,7 +674,7 @@ class Proj {
         if (!args?.pipeline?.length) {
             throw Error(`args.pipeline is mandatory.`);
         }
-        if (typeof args.pipeline != 'string') {
+        if (typeof args.pipeline !== 'string') {
             throw Error(`args.pipeline must be a string.`);
         }
         const keep = new Keeper(this.proj);
@@ -686,10 +682,10 @@ class Proj {
             const pipeline = keep.string(args?.pipeline);
             const ctx = this.proj._proj_context_clone(this.ctx);
             this.proj._proj_context_set_enable_network(ctx, args.use_network ? 1 : 0);
-            let P = this.proj._proj_create(ctx, pipeline);
+            const P = this.proj._proj_create(ctx, pipeline);
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
-                throw new Error("proj_create returned NULL.");
+                throw new Error('proj_create returned NULL.');
             }
             // the ownership of P and ctx is transfered to the transformer
             const tr = new Transformer(this.proj, ctx, P);
@@ -717,14 +713,14 @@ class Proj {
         if (!args?.crs?.length) {
             throw Error(`args.crs is mandatory.`);
         }
-        if (typeof args.crs != 'string') {
+        if (typeof args.crs !== 'string') {
             throw Error(`args.crs must be a string.`);
         }
         const keep = new Keeper(this.proj);
         const res = {};
         try {
             const crs = keep.string(args?.crs);
-            const P_crs = keep.call("_proj_create", this.ctx, crs);
+            const P_crs = keep.call('_proj_create', this.ctx, crs);
             const is_crs = !!this.proj._proj_is_crs(P_crs);
             res.is_crs = is_crs;
             res.type = this.proj._proj_get_type(P_crs);
@@ -753,7 +749,7 @@ class Proj {
         if (!args?.crs?.length) {
             throw Error(`args.crs is mandatory.`);
         }
-        if (typeof args.crs != 'string') {
+        if (typeof args.crs !== 'string') {
             throw Error(`args.crs must be a string.`);
         }
         const keep = new Keeper(this.proj);
@@ -763,13 +759,14 @@ class Proj {
         const PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME = 6;
         try {
             const crs = keep.string(args?.crs);
-            const P_crs = keep.call("_proj_create", this.ctx, crs);
+            const P_crs = keep.call('_proj_create', this.ctx, crs);
             const is_crs = !!this.proj._proj_is_crs(P_crs);
-            const P_datum = is_crs ? keep.call("_proj_crs_get_datum_forced", this.ctx, P_crs) : 0;
-            res.type = P_datum == 0 ? PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum)
-            res.name = P_datum == 0 ? '' : this.proj.UTF8ToString(this.proj._proj_get_name(P_datum));
-            res.is_dynamic = res.type == PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
-                res.type == PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
+            const P_datum = is_crs ? keep.call('_proj_crs_get_datum_forced', this.ctx, P_crs) : 0;
+            res.type = P_datum === 0 ? PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum);
+            res.name = P_datum === 0 ? '' : this.proj.UTF8ToString(this.proj._proj_get_name(P_datum));
+            res.is_dynamic =
+                res.type === PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
+                res.type === PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
             return res;
         } finally {
             keep.clean();
@@ -794,28 +791,33 @@ class Proj {
             const params = 0;
             const count_ptr = keep.malloc(4);
             const crs_info_list_ptr = keep.call_destroyer(
-                "_proj_get_crs_info_list_from_database",
-                "_proj_crs_info_list_destroy",
-                this.ctx, auth_name, params, count_ptr);
+                '_proj_get_crs_info_list_from_database',
+                '_proj_crs_info_list_destroy',
+                this.ctx,
+                auth_name,
+                params,
+                count_ptr,
+            );
             const count = this.proj.getValue(count_ptr, 'i32');
             const ppp = [
-                ["auth", "string"],
-                ["code", "string"],
-                ["name", "string"],
-                ["type", "i32"],
-                ["deprecated", "b32"],
-                ["bbox_valid", "b32"],
-                ["west_lon_degree", "double"],
-                ["south_lat_degree", "double"],
-                ["east_lon_degree", "double"],
-                ["north_lat_degree", "double"],
-                ["area_name", "string"],
-                ["projection_method_name", "string"],
-                ["celestial_body_name", "string"]];
-            const list = []
+                ['auth', 'string'],
+                ['code', 'string'],
+                ['name', 'string'],
+                ['type', 'i32'],
+                ['deprecated', 'b32'],
+                ['bbox_valid', 'b32'],
+                ['west_lon_degree', 'double'],
+                ['south_lat_degree', 'double'],
+                ['east_lon_degree', 'double'],
+                ['north_lat_degree', 'double'],
+                ['area_name', 'string'],
+                ['projection_method_name', 'string'],
+                ['celestial_body_name', 'string'],
+            ];
+            const list = [];
             for (let i = 0; i < count; i++) {
-                const info_struct_ptr = this.proj.getValue(crs_info_list_ptr + (i * 4), '*');
-                const elem = struct_ptr_to_dict(this.proj, info_struct_ptr, ppp)
+                const info_struct_ptr = this.proj.getValue(crs_info_list_ptr + i * 4, '*');
+                const elem = struct_ptr_to_dict(this.proj, info_struct_ptr, ppp);
                 list.push(elem);
             }
             return list;
@@ -854,7 +856,7 @@ class Proj {
         if (!args?.crs?.length) {
             throw Error(`args.crs is mandatory.`);
         }
-        if (typeof args.crs != 'string') {
+        if (typeof args.crs !== 'string') {
             throw Error(`args.crs must be a string.`);
         }
         if (!args?.points?.length) {
@@ -863,8 +865,8 @@ class Proj {
         const keep = new Keeper(this.proj);
         try {
             const crs = keep.string(args?.crs);
-            const P_crs = keep.call("_proj_create", this.ctx, crs);
-            if (P_crs == 0) {
+            const P_crs = keep.call('_proj_create', this.ctx, crs);
+            if (P_crs === 0) {
                 throw Error(`cannot create valid object from this: ${args.crs}`);
             }
 
@@ -874,20 +876,21 @@ class Proj {
 
             const factors_ptr = keep.malloc(96);
             const ppp = [
-                ["meridional_scale", "double"],
-                ["parallel_scale", "double"],
-                ["areal_scale", "double"],
-                ["angular_distortion", "double"],
-                ["meridian_parallel_angle", "double"],
-                ["meridian_convergence", "double"],
-                ["tissot_semimajor", "double"],
-                ["tissot_semiminor", "double"],
-                ["dx_dlam", "double"],
-                ["dx_dphi", "double"],
-                ["dy_dlam", "double"],
-                ["dy_dphi", "double"]]
+                ['meridional_scale', 'double'],
+                ['parallel_scale', 'double'],
+                ['areal_scale', 'double'],
+                ['angular_distortion', 'double'],
+                ['meridian_parallel_angle', 'double'],
+                ['meridian_convergence', 'double'],
+                ['tissot_semimajor', 'double'],
+                ['tissot_semiminor', 'double'],
+                ['dx_dlam', 'double'],
+                ['dx_dphi', 'double'],
+                ['dy_dlam', 'double'],
+                ['dy_dphi', 'double'],
+            ];
             const res = [];
-            for (let point of args?.points) {
+            for (const point of args.points) {
                 if ((point.lat === undefined || point.lon === undefined) && point.length < 2) {
                     throw Error('Invalid input point');
                 }
@@ -903,8 +906,8 @@ class Proj {
                 const error_code = this.proj._proj_errno(P_crs);
                 if (error_code) this.proj._proj_errno_reset(P_crs);
 
-                const elem = struct_ptr_to_dict(this.proj, factors_ptr, ppp)
-                for (let key of ['angular_distortion', 'meridian_parallel_angle', 'meridian_convergence']) {
+                const elem = struct_ptr_to_dict(this.proj, factors_ptr, ppp);
+                for (const key of ['angular_distortion', 'meridian_parallel_angle', 'meridian_convergence']) {
                     elem[key] = this.proj._proj_todeg(elem[key]);
                 }
                 elem.lat = lat;
@@ -945,16 +948,14 @@ class Proj {
             const lat2_ptr = keep.malloc(double_size);
             const lon2_ptr = keep.malloc(double_size);
             const azi2_ptr = keep.malloc(double_size);
-            let res = [];
-            for (let p of args.points) {
-                this.proj._geod_direct(geod_geodesic_ptr,
-                    p.lat1, p.lon1, p.azi1, p.s12,
-                    lat2_ptr, lon2_ptr, azi2_ptr);
+            const res = [];
+            for (const p of args.points) {
+                this.proj._geod_direct(geod_geodesic_ptr, p.lat1, p.lon1, p.azi1, p.s12, lat2_ptr, lon2_ptr, azi2_ptr);
                 const e = {
                     lat2: this.proj.getValue(lat2_ptr, 'double'),
                     lon2: this.proj.getValue(lon2_ptr, 'double'),
                     azi2: this.proj.getValue(azi2_ptr, 'double'),
-                }
+                };
                 res.push(e);
             }
             return res;
@@ -965,5 +966,5 @@ class Proj {
 }
 
 if (typeof exports === 'object' && typeof module === 'object') {
-    module.exports = { Proj: Proj }
+    module.exports = { Proj: Proj };
 }
