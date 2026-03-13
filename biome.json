@@ -34,10 +34,11 @@
     },
     "html": {
         "formatter": {
-            "enabled": false,
-            "indentWidth": 4,
-            "lineWidth": 110,
-            "bracketSameLine": true
+            "enabled": true,
+            "indentWidth": 2,
+            "lineWidth": 120,
+            "bracketSameLine": true,
+            "indentScriptAndStyle": true
         }
     }
 }
