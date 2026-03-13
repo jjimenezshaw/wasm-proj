@@ -77,8 +77,8 @@ function updateURLParams() {
     window.history.replaceState({ path: newUrl }, '', newUrl);
 }
 
-function loadFromURLParams(crs_list) {
-    const params = new URLSearchParams(window.location.search);
+function loadFromURLParams(crs_list, searchParams = undefined) {
+    const params = searchParams ?? new URLSearchParams(window.location.search);
 
     if (params.has('st'))
         document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
@@ -115,6 +115,38 @@ function loadFromURLParams(crs_list) {
         document.getElementById(id).title = document.getElementById(id).value;
     }
     return params.get('run') === '1';
+}
+
+function swapSourceTarget(crs_list) {
+    updateURLParams();
+
+    const params = new URLSearchParams(window.location.search);
+    const newParams = new URLSearchParams();
+
+    // Loop through parameters and swap the 's' and 't' prefixes
+    params.forEach((value, key) => {
+        // This Regex matches our specific keys: st, tt, sh, th, sv, tv, sf, tf, se, te
+        if (key.match(/^[st][thfve]$/)) {
+            const newPrefix = key.charAt(0) === 's' ? 't' : 's';
+            newParams.set(newPrefix + key.substring(1), value);
+        } else if (key !== 'coords') {
+            // Keep the non-directional settings like p3d, net
+            newParams.set(key, value);
+        }
+    });
+
+    // Move the transformed output into the input box!
+    const targetCoords = document.getElementById('target-coordinates').value.toLowerCase();
+    if (targetCoords && !targetCoords.includes('computing') && !targetCoords.includes('error')) {
+        newParams.set('coords', targetCoords);
+    } else {
+        // If there's no valid output, just keep the original input coords
+        newParams.set('coords', params.get('coords') || '');
+    }
+
+    loadFromURLParams(crs_list, newParams);
+    updateAfterLoadUrl(crs_list);
+    validateForm();
 }
 
 function validateForm(doNotUpdateUrl = false) {
@@ -590,7 +622,20 @@ function getFullDescriptor(crs_list, id) {
     return '';
 }
 
-function setupEventListeners(proj_worker, proj) {
+function updateAfterLoadUrl(crs_list) {
+    manageVertical('source', crs_list);
+    manageVertical('target', crs_list);
+
+    toggleInputs('source', true);
+    toggleInputs('target', true);
+
+    updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
+    updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));
+    updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
+    updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
+}
+
+function setupEventListeners(proj_worker, proj, crs_list) {
     // 1. Checkboxes & simple inputs
     ['promote-3d', 'use-network'].forEach((id) => {
         document.getElementById(id).addEventListener('change', () => validateForm());
@@ -645,6 +690,9 @@ function setupEventListeners(proj_worker, proj) {
             copyToClipboard(this.getAttribute('data-copy'), this);
         });
     });
+    document.querySelectorAll('[data-swap]').forEach((btn) => {
+        btn.addEventListener('click', () => swapSourceTarget(crs_list));
+    });
 
     // 6. Main Action Buttons
     document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
@@ -694,18 +742,9 @@ async function load() {
 
     const run = loadFromURLParams(crs_list);
 
-    manageVertical('source', crs_list);
-    manageVertical('target', crs_list);
+    updateAfterLoadUrl(crs_list);
 
-    toggleInputs('source', true);
-    toggleInputs('target', true);
-
-    updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
-    updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));
-    updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
-    updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
-
-    setupEventListeners(proj_worker, proj);
+    setupEventListeners(proj_worker, proj, crs_list);
 
     loader.classList.add('hidden');
     appContent.classList.remove('loading-state');
