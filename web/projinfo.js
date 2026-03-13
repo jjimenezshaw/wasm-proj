@@ -30,7 +30,7 @@ async function copyToClipboard(targetId, btnElement) {
 
 function updateURLParams() {
     const params = new URLSearchParams();
-    params.set('args', document.getElementById('args-text').value);
+    params.set('params', document.getElementById('params-text').value);
     params.set('net', document.getElementById('use-network').checked ? '1' : '0');
 
     const keysToDelete = [];
@@ -48,7 +48,7 @@ function updateURLParams() {
 function loadFromURLParams() {
     const params = new URLSearchParams(window.location.search);
 
-    document.getElementById('args-text').value = params.get('args') ?? '';
+    document.getElementById('params-text').value = params.get('params') ?? '';
     if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
     return params.get('run') === '1';
 }
@@ -59,13 +59,13 @@ function clearField(targetId) {
     el.title = '';
 }
 
-function parseArgs(commandLine) {
+function parseParams(commandLine) {
     // Regex Breakdown:
     // 1. "([^"\\]*(?:\\.[^"\\]*)*)" : Matches double quotes, allowing escaped chars \"
     // 2. '([^'\\]*(?:\\.[^'\\]*)*)' : Matches single quotes, allowing escaped chars \'
     // 3. (?:\\(?=\s)|[^\s\\])+      : Matches unquoted text, allowing escaped spaces \
     const regex = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|((?:\\(?=\s)|[^\s\\])+)/g;
-    const args = [];
+    const params = [];
 
     const matches = commandLine.matchAll(regex);
 
@@ -74,17 +74,17 @@ function parseArgs(commandLine) {
 
         // Clean up the escapes (e.g., changing \" to ")
         // This mimics how BASH strips the escape character after processing
-        args.push(value.replace(/\\(.)/g, '$1'));
+        params.push(value.replace(/\\(.)/g, '$1'));
     }
 
-    return args;
+    return params;
 }
 
 function run(proj) {
     updateURLParams();
-    const commandLine = document.getElementById('args-text').value;
+    const commandLine = document.getElementById('params-text').value;
     const use_network = document.getElementById('use-network').checked;
-    const params = parseArgs(commandLine);
+    const params = parseParams(commandLine);
     if (params.length && ['projinfo', 'projinfo.exe'].includes(params[0].toLowerCase())) {
         params.shift(); // allow the first param to be 'projinfo'
     }
