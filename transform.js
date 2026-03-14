@@ -1,28 +1,26 @@
-'use strict'
+/*
+ * SPDX-FileCopyrightText: © 2026 Javier Jimenez Shaw
+ * SPDX-License-Identifier: MIT
+ */
 
 // Safari cannot change the display in options in select. So do a heavier work.
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 async function copyToClipboard(targetId, btnElement) {
-    const textArea = document.getElementById(targetId);
-
-    // Don't do anything if the text area is empty
-    if (!textArea.value.trim()) return;
+    const element = document.getElementById(targetId);
+    const textToCopy = element.value !== undefined ? element.value : element.innerText;
+    if (!textToCopy.trim()) return;
 
     try {
-        await navigator.clipboard.writeText(textArea.value);
-
-        // Visual feedback
+        await navigator.clipboard.writeText(textToCopy);
         const originalText = btnElement.innerText;
         btnElement.innerText = 'Copied!';
-        btnElement.style.backgroundColor = '#d1fae5'; // subtle green success color
+        btnElement.classList.add('btn-copied');
 
-        // Revert back after 2 seconds
         setTimeout(() => {
             btnElement.innerText = originalText;
-            btnElement.style.backgroundColor = '';
+            btnElement.classList.remove('btn-copied');
         }, 2000);
-
     } catch (err) {
         console.error('Failed to copy text: ', err);
         alert('Could not copy to clipboard. Please check browser permissions.');
@@ -34,7 +32,7 @@ function handleFileLoad(event, targetId) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = (e) => {
         const textArea = document.getElementById(targetId);
         textArea.value = e.target.result;
 
@@ -71,17 +69,21 @@ function updateURLParams() {
     params.forEach((value, key) => {
         if (value === '') keysToDelete.push(key);
     });
-    keysToDelete.forEach(key => params.delete(key));
+    keysToDelete.forEach((key) => {
+        params.delete(key);
+    });
 
     const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({ path: newUrl }, '', newUrl);
 }
 
-function loadFromURLParams(crs_list) {
-    const params = new URLSearchParams(window.location.search);
+function loadFromURLParams(crs_list, searchParams = undefined) {
+    const params = searchParams ?? new URLSearchParams(window.location.search);
 
-    if (params.has('st')) document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
-    if (params.has('tt')) document.querySelector(`input[name="target_type"][value="${params.get('tt')}"]`).checked = true;
+    if (params.has('st'))
+        document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
+    if (params.has('tt'))
+        document.querySelector(`input[name="target_type"][value="${params.get('tt')}"]`).checked = true;
 
     document.getElementById('source-horizontal-input').value = getFullDescriptor(crs_list, params.get('sh')) ?? '';
     document.getElementById('source-vertical-input').value = getFullDescriptor(crs_list, params.get('sv')) ?? '';
@@ -92,13 +94,11 @@ function loadFromURLParams(crs_list) {
     document.getElementById('target-freetext').value = params.get('tf') ?? '';
 
     if (params.has('se')) {
-        document.getElementById('source-epoch-enable').checked = true;
         document.getElementById('source-epoch').disabled = false;
         document.getElementById('source-epoch').value = params.get('se');
     }
 
     if (params.has('te')) {
-        document.getElementById('target-epoch-enable').checked = true;
         document.getElementById('target-epoch').disabled = false;
         document.getElementById('target-epoch').value = params.get('te');
     }
@@ -106,13 +106,50 @@ function loadFromURLParams(crs_list) {
     if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
     if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
 
-    for (let id of ['source-horizontal-input', 'source-vertical-input', 'target-horizontal-input', 'target-vertical-input']) {
+    for (const id of [
+        'source-horizontal-input',
+        'source-vertical-input',
+        'target-horizontal-input',
+        'target-vertical-input',
+    ]) {
         document.getElementById(id).title = document.getElementById(id).value;
     }
     return params.get('run') === '1';
 }
 
-function validateForm() {
+function swapSourceTarget(crs_list) {
+    updateURLParams();
+
+    const params = new URLSearchParams(window.location.search);
+    const newParams = new URLSearchParams();
+
+    // Loop through parameters and swap the 's' and 't' prefixes
+    params.forEach((value, key) => {
+        // This Regex matches our specific keys: st, tt, sh, th, sv, tv, sf, tf, se, te
+        if (key.match(/^[st][thfve]$/)) {
+            const newPrefix = key.charAt(0) === 's' ? 't' : 's';
+            newParams.set(newPrefix + key.substring(1), value);
+        } else if (key !== 'coords') {
+            // Keep the non-directional settings like p3d, net
+            newParams.set(key, value);
+        }
+    });
+
+    // Move the transformed output into the input box!
+    const targetCoords = document.getElementById('target-coordinates').value.toLowerCase();
+    if (targetCoords && !targetCoords.includes('computing') && !targetCoords.includes('error')) {
+        newParams.set('coords', targetCoords);
+    } else {
+        // If there's no valid output, just keep the original input coords
+        newParams.set('coords', params.get('coords') || '');
+    }
+
+    loadFromURLParams(crs_list, newParams);
+    updateAfterLoadUrl(crs_list);
+    validateForm();
+}
+
+function validateForm(doNotUpdateUrl = false) {
     const btn = document.getElementById('btn-transform');
     const coords = document.getElementById('source-coordinates').value.trim();
 
@@ -134,7 +171,7 @@ function validateForm() {
         btn.disabled = true;
     }
 
-    updateURLParams();
+    if (!doNotUpdateUrl) updateURLParams();
 }
 
 function updateCRSLink(prefix, type, value) {
@@ -142,7 +179,7 @@ function updateCRSLink(prefix, type, value) {
     if (!linkElement) return;
 
     if (value) {
-        let pair = getCrsAuthCode(value);
+        const pair = getCrsAuthCode(value);
 
         if (pair[0]) {
             const auth = pair[0];
@@ -151,45 +188,48 @@ function updateCRSLink(prefix, type, value) {
             linkElement.classList.remove('disabled');
             linkElement.title = `View ${auth}:${code} details`;
         } else {
-            linkElement.href = "#";
+            linkElement.href = '#';
             linkElement.classList.add('disabled');
-            linkElement.title = "No external link available";
+            linkElement.title = 'No external link available';
         }
     } else {
-        linkElement.href = "#";
+        linkElement.href = '#';
         linkElement.classList.add('disabled');
-        linkElement.title = "Select a CRS to view details";
+        linkElement.title = 'Select a CRS to view details';
     }
 }
 
-function toggleEpoch(prefix) {
-    const checkbox = document.getElementById(`${prefix}-epoch-enable`);
+function setEpochEnabled(prefix, isEnabled) {
+    const container = document.getElementById(`${prefix}-epoch-container`);
     const input = document.getElementById(`${prefix}-epoch`);
+    const helper = container.querySelector('.helper-text');
 
-    if (checkbox.checked) {
+    if (isEnabled) {
+        container.classList.remove('disabled');
         input.disabled = false;
-        input.placeholder = "decimal year";
-        input.focus();
+        helper.classList.add('hidden');
     } else {
+        container.classList.add('disabled');
         input.disabled = true;
+        helper.classList.remove('hidden');
         input.value = '';
     }
 
-    validateForm();
+    // validateForm();
 }
 
-function toggleInputs(columnPrefix) {
+function toggleInputs(columnPrefix, doNotUpdateUrl = false) {
     const selectedType = document.querySelector(`input[name="${columnPrefix}_type"]:checked`).value;
     const comboGroup = document.getElementById(`${columnPrefix}-combo-group`);
     const textGroup = document.getElementById(`${columnPrefix}-text-group`);
 
     if (selectedType === 'combo') {
-        comboGroup.style.display = 'block';
-        textGroup.style.display = 'none';
+        comboGroup.classList.remove('hidden');
+        textGroup.classList.add('hidden');
         document.getElementById(`${columnPrefix}-freetext`).value = '';
     } else {
-        comboGroup.style.display = 'none';
-        textGroup.style.display = 'block';
+        comboGroup.classList.add('hidden');
+        textGroup.classList.remove('hidden');
         document.getElementById(`${columnPrefix}-horizontal-input`).value = '';
         document.getElementById(`${columnPrefix}-vertical-input`).value = '';
 
@@ -197,7 +237,7 @@ function toggleInputs(columnPrefix) {
         updateCRSLink(columnPrefix, 'vertical', '');
     }
     updateMetadata(columnPrefix);
-    validateForm();
+    validateForm(doNotUpdateUrl);
 }
 
 function getCrsFromInput(prefix) {
@@ -208,7 +248,7 @@ function getCrsFromInput(prefix) {
         const vert = getCrsId(document.getElementById(`${prefix}-vertical-input`).value);
         if (horiz) {
             crs = horiz;
-            if (vert) crs += '+' + vert;
+            if (vert) crs += `+${vert}`;
         }
     } else {
         crs = document.getElementById(`${prefix}-freetext`).value;
@@ -218,22 +258,23 @@ function getCrsFromInput(prefix) {
 
 function updateMetadata(prefix) {
     const metadataBox = document.getElementById(`${prefix}-metadata`);
-    let crs = getCrsFromInput(prefix);
+    const crs = getCrsFromInput(prefix);
 
-    let metadataText = "";
+    let metadataText = '';
 
-    if (crs) {
-        const prev_log_level = proj.log_level(0); // diable PROJ log messages
-        try {
+    const prev_log_level = proj.log_level(0); // disable PROJ log messages
+    try {
+        const metadata = crs ? proj.crs_metadata({ crs: crs }) : {};
+        if (metadata.is_crs) {
+            const datum = proj.datum_metadata({ crs: crs });
+            setEpochEnabled(prefix, datum.is_dynamic);
+
             const a = proj.crs_axes({ crs: crs });
-            for (let i = 0; i < a.name.length; i++) {
-                if (i > 0) metadataText += "\n";
-                metadataText += `${a.name[i]} (${a.abbr[i]})  |  ${a.direction[i]}  -  [${a.unit[i]}]`
-            }
-            if (!a.name?.length) {
+            metadataText = a.map((e) => `${e.name} (${e.abbr})  |  ${e.direction}  -  [${e.unit}]`).join('\n');
+            if (a.length === 0) {
                 metadataText = `Cannot get data from '${crs}'`;
-            } else if (prefix == 'target') {
-                const axUnit = a.unit[0].toLowerCase();
+            } else if (prefix === 'target') {
+                const axUnit = a[0].unit.toLowerCase();
                 const dp = document.getElementById(`decimal-places`);
                 if (axUnit.includes('degree') || axUnit.includes('rad')) {
                     dp.value = 9;
@@ -241,9 +282,11 @@ function updateMetadata(prefix) {
                     dp.value = 4;
                 }
             }
-        } finally {
-            proj.log_level(prev_log_level);
+        } else {
+            setEpochEnabled(prefix, false);
         }
+    } finally {
+        proj.log_level(prev_log_level);
     }
 
     metadataBox.value = metadataText;
@@ -266,33 +309,20 @@ function setVerticalEnabled(prefix, isEnabled) {
         updateCRSLink(prefix, 'vertical', '');
     }
 
-    // Always re-validate the form and update the URL when the state changes
-    validateForm();
+    // re-validate the form and update the URL when the state changes?
+    // validateForm();
 }
 
 function findInCrsList(authCode, crs_list) {
     if (authCode.length < 2) return null;
-    const ac = authCode.map(e => e.toLowerCase());
-    const inList = crs_list.find(e => e.auth.toLowerCase() == ac[0] && e.code.toLowerCase() == ac[1]);
+    const ac = authCode.map((e) => e.toLowerCase());
+    const inList = crs_list.find((e) => e.auth.toLowerCase() === ac[0] && e.code.toLowerCase() === ac[1]);
     return inList;
-}
-
-function manageVertical(prefix, crs_list) {
-    const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
-    const PJ_TYPE_PROJECTED_CRS = 15;
-
-    const horizAuthCode = getCrsAuthCode(document.getElementById(`${prefix}-horizontal-input`).value);
-    const inList = findInCrsList(horizAuthCode, crs_list);
-    if (inList && (inList.type == PJ_TYPE_GEOGRAPHIC_2D_CRS || inList.type == PJ_TYPE_PROJECTED_CRS)) {
-        setVerticalEnabled(prefix, true);
-    } else {
-        setVerticalEnabled(prefix, false);
-    }
 }
 
 function populateSelect(selectElement, dataArray) {
     const fragment = document.createDocumentFragment();
-    dataArray.forEach(item => {
+    dataArray.forEach((item) => {
         const option = document.createElement('option');
         option.value = item;
         option.textContent = item;
@@ -314,6 +344,19 @@ function clearField(targetId) {
     el.focus();
 }
 
+function manageVertical(prefix, crs_list) {
+    const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
+    const PJ_TYPE_PROJECTED_CRS = 15;
+
+    const horizAuthCode = getCrsAuthCode(document.getElementById(`${prefix}-horizontal-input`).value);
+    const inList = findInCrsList(horizAuthCode, crs_list);
+    if (inList && (inList.type === PJ_TYPE_GEOGRAPHIC_2D_CRS || inList.type === PJ_TYPE_PROJECTED_CRS)) {
+        setVerticalEnabled(prefix, true);
+    } else {
+        setVerticalEnabled(prefix, false);
+    }
+}
+
 // prefix: source, target
 // type: horizontal, vertical
 function setupCustomCombobox(prefix, type, dataArray, crs_list) {
@@ -327,14 +370,14 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
     input.addEventListener('focus', () => container.classList.add('open'));
     input.addEventListener('click', () => container.classList.add('open'));
 
-    container.addEventListener('focusout', function (e) {
+    container.addEventListener('focusout', (e) => {
         const authCode = getCrsAuthCode(e.target.value);
         if (authCode[0] && !findInCrsList(authCode, crs_list)) {
             e.target.classList.add('invalid');
-            e.target.title = 'Element not in the catalog.'
+            e.target.title = 'Element not in the catalog.';
         } else {
             e.target.classList.remove('invalid');
-            e.target.title = ''
+            e.target.title = '';
         }
         if (!container.contains(e.relatedTarget)) {
             container.classList.remove('open');
@@ -351,7 +394,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
 
         updateMetadata(prefix);
         updateCRSLink(prefix, type, val);
-        if (type == 'horizontal') manageVertical(prefix, crs_list);
+        if (type === 'horizontal') manageVertical(prefix, crs_list);
         validateForm();
     }
 
@@ -359,40 +402,45 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         if (this.value) handleSelection(this.value);
     });
 
-    select.addEventListener('click', function (e) {
+    select.addEventListener('click', (e) => {
         if (e.target.tagName === 'OPTION' || e.target.tagName === 'SELECT') {
             if (select.value) handleSelection(select.value);
         }
     });
 
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', (e) => {
         if (!container.contains(e.target)) container.classList.remove('open');
     });
 
-    input.addEventListener('keydown', function (e) {
+    input.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             if (!container.classList.contains('open')) container.classList.add('open');
 
             const direction = e.key === 'ArrowDown' ? 1 : -1;
             const options = select.options;
-            let currentIndex = select.selectedIndex;
+            const currentIndex = select.selectedIndex;
             let nextIndex = -1;
 
             if (direction === 1) {
-                let start = currentIndex >= 0 ? currentIndex + 1 : 0;
+                const start = currentIndex >= 0 ? currentIndex + 1 : 0;
                 for (let i = start; i < options.length; i++) {
-                    if (options[i].style.display !== 'none') { nextIndex = i; break; }
+                    if (!options[i].classList.contains('hidden')) {
+                        nextIndex = i;
+                        break;
+                    }
                 }
             } else {
-                let start = currentIndex >= 0 ? currentIndex - 1 : options.length - 1;
+                const start = currentIndex >= 0 ? currentIndex - 1 : options.length - 1;
                 for (let i = start; i >= 0; i--) {
-                    if (options[i].style.display !== 'none') { nextIndex = i; break; }
+                    if (!options[i].classList.contains('hidden')) {
+                        nextIndex = i;
+                        break;
+                    }
                 }
             }
 
             if (nextIndex !== -1) select.selectedIndex = nextIndex;
-
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (container.classList.contains('open') && select.selectedIndex !== -1) {
@@ -403,7 +451,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         }
     });
 
-    input.addEventListener('input', function (e) {
+    input.addEventListener('input', (e) => {
         container.classList.add('open');
         const inputText = e.target.value;
         select.selectedIndex = -1;
@@ -416,7 +464,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
 
         function filter(text) {
             const lower = text.toLowerCase();
-            return filterArray.every(e => lower.includes(e));
+            return filterArray.every((e) => lower.includes(e));
         }
 
         if (isSafari) {
@@ -435,48 +483,57 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         } else {
             const options = select.options;
             for (let i = 0; i < options.length; i++) {
-                options[i].style.display = filter(options[i].textContent) ? '' : 'none';
+                options[i].classList.toggle('hidden', !filter(options[i].textContent));
             }
         }
     });
 }
 
 function parseInputCoordinates(sourceCoords) {
-    const coordLines = sourceCoords.split('\n').filter(line => line.trim().length > 0);
-    let points = []
-    coordLines.forEach(line => {
-        let splitted = line.split(',');
-        if (splitted.length < 2) splitted = line.split(' ');
-        splitted = splitted.filter(n => n) // remove empty elements
-        const floats = splitted.map(e => Number.parseFloat(e));
+    const coordLines = sourceCoords.split('\n').filter((line) => line.trim().length > 0);
+    const points = [];
+    coordLines.forEach((line) => {
+        let splitted = [];
+        for (const separator of [';', ',', '\t', ' ']) {
+            splitted = line.split(separator);
+            if (splitted.length >= 2) {
+                break;
+            }
+        }
+        // replace ',' as decimal separator with ';' column separator
+        splitted = splitted.map((e) => e.replace(',', '.'));
+        splitted = splitted.filter((n) => n); // remove empty elements
+        const floats = splitted.map((e) => Number.parseFloat(e));
         points.push(floats);
-    })
+    });
     return points;
 }
 
 function showPointsInMap(proj) {
     const coords = document.getElementById('source-coordinates').value;
     if (!coords.trim()) {
-        console.log("No points to show in the map.")
+        console.log('No points to show in the map.');
         return;
     }
 
-    const points = parseInputCoordinates(coords).map(e => e.slice(0, 2));
+    const points = parseInputCoordinates(coords).map((e) => e.slice(0, 2));
 
     let transformer;
     try {
         const s = getCrsFromInput('source');
-        if (s.length === 0) throw new Error('Select a valid source CRS')
+        if (s.length === 0) throw new Error('Select a valid source CRS');
         const t = 'EPSG:4326';
-        transformer = proj.create_transformer_from_crs_to_crs({
-            source_crs: s, target_crs: t, promote_to_3D: false,
+        transformer = proj.create_transformer_from_crs({
+            source_crs: s,
+            target_crs: t,
+            promote_to_3D: false,
         });
         const transformed = transformer.transform({ points: points });
-        const res = transformed.map(point => point.map(e => e.toFixed(6)).join(',')).join(';');
+        const res = transformed.map((point) => point.map((e) => e.toFixed(6)).join(',')).join(';');
         const mapUrl = `./pointsinmap.html?points=${res}`;
         window.open(mapUrl, '_blank');
     } catch (e) {
-        console.error('Error showing in a map: ' + e);
+        console.error(`Error showing in a map: ${e}`);
         return;
     } finally {
         if (transformer) transformer.dispose();
@@ -489,7 +546,7 @@ async function handleTransform(proj_worker) {
     if (!sourceCoords.trim()) return;
 
     const output = document.getElementById('target-coordinates');
-    output.value = '... computing ...'
+    output.value = '... computing ...';
 
     const promote3D = document.getElementById('promote-3d').checked;
     const useNetwork = document.getElementById('use-network').checked;
@@ -497,13 +554,13 @@ async function handleTransform(proj_worker) {
     const points = parseInputCoordinates(sourceCoords);
 
     const summaryBox = document.getElementById('transformation-summary');
-    summaryBox.value = '';
+    summaryBox.innerText = '';
     let transformer;
     try {
         try {
             const s = getCrsFromInput('source');
-            const t = getCrsFromInput('target')
-            transformer = await proj_worker.create_transformer_from_crs_to_crs({
+            const t = getCrsFromInput('target');
+            transformer = await proj_worker.create_transformer_from_crs({
                 source_crs: s,
                 target_crs: t,
                 source_epoch: parseFloat(document.getElementById('source-epoch').value),
@@ -512,25 +569,27 @@ async function handleTransform(proj_worker) {
                 promote_to_3D: promote3D,
             });
         } catch (e) {
-            output.value = 'Error:' + e;
+            output.value = `Error:${e}`;
             return;
         }
         try {
             const transformed = await transformer.transform({ points: points });
             const dp = document.getElementById(`decimal-places`).value;
 
-            let res = transformed.map(point => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' ')).join('\n');
+            const res = transformed
+                .map((point) => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' '))
+                .join('\n');
             output.value = res;
         } catch (e) {
-            output.value = 'Error:' + e;
+            output.value = `Error:${e}`;
             return;
         }
         try {
             const lastOp = await transformer.get_last_operation();
             const date = new Date().toLocaleString();
-            summaryBox.value = lastOp.description + '\n\n' + lastOp.proj_5 + '\n\n' + date;
+            summaryBox.innerText = `${lastOp.description}\n\n${lastOp.proj_5}\n\n${date}`;
         } catch (e) {
-            summaryBox.value = 'Error: ' + e;
+            summaryBox.innerText = `Error: ${e}`;
         }
     } finally {
         if (transformer) await transformer.dispose();
@@ -556,11 +615,88 @@ function getCrsId(descriptor) {
 
 function getFullDescriptor(crs_list, id) {
     const [auth, code] = (id ?? '').split(':');
-    const found = crs_list.find(e => e.auth == auth && e.code == code);
+    const found = crs_list.find((e) => e.auth === auth && e.code === code);
     if (found) {
         return `${found.auth}:${found.code} - ${found.name}`;
     }
     return '';
+}
+
+function updateAfterLoadUrl(crs_list) {
+    manageVertical('source', crs_list);
+    manageVertical('target', crs_list);
+
+    toggleInputs('source', true);
+    toggleInputs('target', true);
+
+    updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
+    updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));
+    updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
+    updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
+}
+
+function setupEventListeners(proj_worker, proj, crs_list) {
+    // 1. Checkboxes & simple inputs
+    ['promote-3d', 'use-network'].forEach((id) => {
+        document.getElementById(id).addEventListener('change', () => validateForm());
+    });
+
+    [
+        'source-horizontal-input',
+        'source-vertical-input',
+        'source-epoch',
+        'target-horizontal-input',
+        'target-vertical-input',
+        'target-epoch',
+        'source-coordinates',
+    ].forEach((id) => {
+        document.getElementById(id).addEventListener('input', () => validateForm());
+    });
+
+    // 2. Radio buttons
+    document.querySelectorAll('input[name="source_type"]').forEach((radio) => {
+        radio.addEventListener('change', () => toggleInputs('source'));
+    });
+    document.querySelectorAll('input[name="target_type"]').forEach((radio) => {
+        radio.addEventListener('change', () => toggleInputs('target'));
+    });
+
+    // 3. Freetext areas (Need metadata update + validation)
+    ['source', 'target'].forEach((prefix) => {
+        document.getElementById(`${prefix}-freetext`).addEventListener('input', () => {
+            updateMetadata(prefix);
+            validateForm();
+        });
+    });
+
+    // 4. File inputs
+    document.getElementById('source-file').addEventListener('change', (e) => handleFileLoad(e, 'source-freetext'));
+    document.getElementById('target-file').addEventListener('change', (e) => handleFileLoad(e, 'target-freetext'));
+    document.getElementById('coords-file').addEventListener('change', (e) => handleFileLoad(e, 'source-coordinates'));
+
+    // 5. Data-Attribute Buttons (Clear, Load, Copy)
+    document.querySelectorAll('[data-clear]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            clearField(this.getAttribute('data-clear'));
+        });
+    });
+    document.querySelectorAll('[data-load]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            document.getElementById(this.getAttribute('data-load')).click();
+        });
+    });
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            copyToClipboard(this.getAttribute('data-copy'), this);
+        });
+    });
+    document.querySelectorAll('[data-swap]').forEach((btn) => {
+        btn.addEventListener('click', () => swapSourceTarget(crs_list));
+    });
+
+    // 6. Main Action Buttons
+    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
+    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
 }
 
 let proj;
@@ -568,9 +704,9 @@ let proj;
 async function load() {
     const appContent = document.getElementById('app-content');
     const loader = document.getElementById('loading-indicator');
-    loader.style.display = 'block';
+    loader.classList.remove('hidden');
 
-    console.log("Downloading resources...", Date());
+    console.log('Downloading resources...', Date());
 
     proj = new Proj();
     await proj.init();
@@ -580,7 +716,7 @@ async function load() {
     document.getElementById('proj-version').title = info.compilation_date;
     const crs_list = proj.crs_list().filter((e, i, list) => {
         // there are some consecutive repeated elements, like EPSG:25832
-        return i == 0 || e.auth != list[i - 1].auth || e.code != list[i - 1].code;
+        return i === 0 || e.auth !== list[i - 1].auth || e.code !== list[i - 1].code;
     });
     /////////////////////////
     const bridge = new WorkerBridge();
@@ -588,11 +724,11 @@ async function load() {
     await proj_worker.init();
 
     const horizontalData = [];
-    const verticalData = [" - none / ellipsodial height"];
+    const verticalData = [' - none / ellipsodial height'];
     const PJ_TYPE_VERTICAL_CRS = 14;
-    crs_list.forEach(e => {
+    crs_list.forEach((e) => {
         const text = `${e.auth}:${e.code} - ${e.name}`;
-        if (e.type == PJ_TYPE_VERTICAL_CRS) {
+        if (e.type === PJ_TYPE_VERTICAL_CRS) {
             verticalData.push(text);
         } else {
             horizontalData.push(text);
@@ -605,26 +741,16 @@ async function load() {
     setupCustomCombobox('target', 'vertical', verticalData, crs_list);
 
     const run = loadFromURLParams(crs_list);
-    manageVertical('source', crs_list);
-    manageVertical('target', crs_list);
 
+    updateAfterLoadUrl(crs_list);
 
-    toggleInputs('source');
-    toggleInputs('target');
+    setupEventListeners(proj_worker, proj, crs_list);
 
-    updateCRSLink('source', 'horizontal', getCrsId(document.getElementById('source-horizontal-input').value));
-    updateCRSLink('source', 'vertical', getCrsId(document.getElementById('source-vertical-input').value));
-    updateCRSLink('target', 'horizontal', getCrsId(document.getElementById('target-horizontal-input').value));
-    updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
-
-    document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
-    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
-
-    loader.style.display = 'none';
+    loader.classList.add('hidden');
     appContent.classList.remove('loading-state');
-    console.log("Ready.", Date());
+    console.log('Ready.', Date());
 
     if (run) handleTransform(proj_worker);
-};
+}
 
 window.addEventListener('load', load);

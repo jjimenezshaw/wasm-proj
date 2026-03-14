@@ -1,65 +1,83 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
     <title>projinfo WASM PROJ</title>
 
+    <link rel="stylesheet" href="./global.css" >
+    <link rel="stylesheet" href="./projinfo.css" >
 
-    <link rel="stylesheet" href="./projinfo.css" />
-
-    <script src="./proj/projModule.js"></script>
+    <script src="./proj/wasm/projModule.js"></script>
     <script src="./proj/projFunctions.js"></script>
 
     <script src="./projinfo.js"></script>
-</head>
+  </head>
 
-<body>
+  <body>
     <div class="main-wrapper">
-        <div id="loading-indicator">&#8987;</div>
+      <div id="loading-indicator" class="hidden">&#8987;</div>
 
-        <div id="app-content" class="loading-state">
-            <div class="full-width-section">
-                <h2>projinfo with WASM PROJ</h2>
-                <p class="description-text">
-                    WASM JavaScript implementation of <a href="https://proj.org/apps/projinfo.html"
-                        target="_blank">projinfo</a>
-                    Command Line Application.
-                    Implemented with <a href="https://proj.org" target="_blank">PROJ</a> <span id="proj-version"></span>
-                    <br>
-                    Look at the &gt; <a href="https://proj.org/apps/projinfo.html" target="_blank">PROJ documentation</a> &lt;
-                    to know the correct parameters.
-                </p>
-            </div>
-            <div class="container">
-                <div class="column">
-                    <label class="checkbox-label"
-                        title="Enables querying with PROJ_NETWORK=ON. The results may differ in some cases.">
-                        <input type="checkbox" id="use-network" checked> Enable network
-                    </label>
-                    <div class="textarea-container">
-                        <button class="clear-btn" onclick="clearField('args-text')" title="Clear field">&times;</button>
-                        <textarea id="args-text" class="mono-space" class="freetext-text" spellcheck="false"
-                            placeholder="Type here the projinfo parameters"></textarea>
-                    </div>
+      <header class="app-header">
+        <div class="header-title">Wasm PROJ - projinfo</div>
+        <nav class="header-nav">
+          <a href="./transform.html">CRS transform</a>
+          <a href="./transform_pipeline.html">Pipeline transform</a>
+          <a href="./projinfo.html">projinfo</a>
+          <a href="./">Home</a>
 
-                    <hr class="section-divider">
-                    <div class="action-area">
-                        <button id="btn-transform" class="btn-transform">Run</button>
-                    </div>
-                    <div class="field">
-                        <div class="flex-header">
-                            <label>Return code: <spam id="rc"></spam></label>
-                            <button class="btn-small" onclick="copyToClipboard('output-text', this)">Copy</button>
-                        </div>
-                        <div id="output-text" class="mono-space" readonly spellcheck="false" placeholder=""
-                            style="min-height: 80px;"></div>
-                    </div>
-                </div>
-            </div>
+          <a
+            href="https://github.com/jjimenezshaw/wasm-proj"
+            target="_blank"
+            class="github-link"
+            title="View source on GitHub"></a>
+        </nav>
+      </header>
+
+      <div id="app-content" class="loading-state">
+        <div class="full-width-section">
+          <h2>projinfo with Wasm PROJ</h2>
+          <p class="description-text">
+            WASM JavaScript implementation of
+            <a href="https://proj.org/apps/projinfo.html" target="_blank">projinfo</a>
+            Command Line Application. Implemented with
+            <a href="https://proj.org" target="_blank">PROJ</a>
+            <span id="proj-version"></span>
+            <br >
+            Look at the &gt;
+            <a href="https://proj.org/apps/projinfo.html" target="_blank">PROJ documentation</a>
+            &lt; to know the correct parameters.
+          </p>
         </div>
-    </div>
-</body>
+        <div class="container">
+          <div class="column">
+            <label
+              class="checkbox-label"
+              title="Enables querying with PROJ_NETWORK=ON. The results may differ in some cases.">
+              <input type="checkbox" id="use-network" checked >
+              Enable network
+            </label>
+            <div class="textarea-container">
+              <button type="button" class="clear-btn" data-clear="params-text" title="Clear field">&times;</button>
+              <textarea
+                id="params-text"
+                class="mono-space"
+                spellcheck="false"
+                placeholder="Type here the projinfo parameters"></textarea>
+            </div>
 
+            <hr class="section-divider" >
+            <div class="action-area"><button type="button" id="btn-transform" class="btn-transform">Run</button></div>
+            <div class="field">
+              <div class="flex-header">
+                <label>Return code: <span id="rc"></span></label>
+                <button type="button" class="btn-small" data-copy="output-text">Copy</button>
+              </div>
+              <div id="output-text" class="mono-space min-h-80" readonly spellcheck="false"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
