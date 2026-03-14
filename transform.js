@@ -137,6 +137,8 @@ function swapSourceTarget(crs_list) {
 
     // Move the transformed output into the input box!
     const targetCoords = document.getElementById('target-coordinates').value.toLowerCase();
+    document.getElementById('target-coordinates').value = '';
+    document.getElementById('transformation-summary').innerText = '';
     if (targetCoords && !targetCoords.includes('computing') && !targetCoords.includes('error')) {
         newParams.set('coords', targetCoords);
     } else {
@@ -336,6 +338,7 @@ function clearField(targetId) {
     const el = document.getElementById(targetId);
     el.value = '';
     el.title = '';
+    el.innerText = '';
 
     // Dispatch an input event so your validation, metadata, and URL updating functions run automatically
     el.dispatchEvent(new Event('input', { bubbles: true }));

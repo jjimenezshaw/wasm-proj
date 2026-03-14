@@ -291,11 +291,16 @@
                 <label>Transformed Coordinates</label>
                 <button type="button" class="btn-small" data-copy="target-coordinates">Copy</button>
               </div>
-              <textarea
-                id="target-coordinates"
-                class="mono-space min-h-80"
-                readonly
-                placeholder="Transformed results will appear here..."></textarea>
+              <div class="textarea-container">
+                <button type="button" class="clear-btn" data-clear="target-coordinates" title="Clear field">
+                  &times;
+                </button>
+                <textarea
+                  id="target-coordinates"
+                  class="mono-space min-h-80"
+                  readonly
+                  placeholder="Transformed results will appear here..."></textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -309,8 +314,13 @@
             <h3>Last Operation Summary</h3>
             <button type="button" class="btn-small" data-copy="transformation-summary">Copy</button>
           </div>
-          <div id="transformation-summary" class="summary-box mono-space">
-            Summary details will appear after transformation...
+          <div class="textarea-container">
+            <button type="button" class="clear-btn" data-clear="transformation-summary" title="Clear field">
+              &times;
+            </button>
+            <div id="transformation-summary" class="summary-box mono-space">
+              Summary details will appear after transformation...
+            </div>
           </div>
         </div>
       </div>
