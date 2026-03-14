@@ -12,7 +12,7 @@ Very similar to [cs2cs](https://proj.org/apps/cs2cs.html).
 There you can select a source and target CRS from a list, or introduce your own definition as PROJJSON, WKT, etc.
 The input coordinates support several lines.
 Most common field separators are supported.
-Hash `#` as first character works as a comment, that is replied in the output.
+Lines starting with a hash `#` are ignored.
 
 At the bottom you can see the description (as text and as a proj pipeline) of the last transformation.
 

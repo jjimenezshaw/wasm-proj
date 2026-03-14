@@ -496,6 +496,9 @@ function parseInputCoordinates(sourceCoords) {
     const coordLines = sourceCoords.split('\n').filter((line) => line.trim().length > 0);
     const points = [];
     coordLines.forEach((line) => {
+        if (line[0] === '#') {
+            return;
+        }
         let splitted = [];
         for (const separator of [';', ',', '\t', ' ']) {
             splitted = line.split(separator);
