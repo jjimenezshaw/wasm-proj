@@ -849,7 +849,7 @@ class Proj {
      * Gets the distortion factors of a projected crs
      * @param {Object} args
      * @param {string} args.crs - definition of the CRS
-     * @param {list} args.points - {lat:, lon:} or [lat, lon]
+     * @param {{lat: number, lon: number}[]} args.points - vector of points
      * @returns {factors_result[]} - list of factors
      */
     factors(args) {
