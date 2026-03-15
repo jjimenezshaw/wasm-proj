@@ -8,3 +8,7 @@
 
 projModule.js
 projModule.wasm
+
+# wasm files last downloaded from artifact from https://github.com/OSGeo/PROJ/actions/runs/22577025021
+
+# look for newer versions in https://github.com/OSGeo/PROJ/actions/workflows/emscripten.yml
