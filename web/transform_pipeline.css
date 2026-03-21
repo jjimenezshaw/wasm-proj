@@ -1,0 +1,8 @@
+#pipeline-text {
+    min-height: 120px;
+}
+
+/* Overwrite global */
+.checkbox-group {
+    border-top: 0;
+}

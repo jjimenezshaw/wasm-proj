@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
+    <title>Wasm PROJ - Home</title>
+
+    <link rel="stylesheet" href="./global.css" >
+    <link rel="stylesheet" href="./index.css" >
+  </head>
+
+  <body>
+    <div class="main-wrapper">
+      <header class="app-header">
+        <div class="header-title">Wasm PROJ</div>
+        <nav class="header-nav">
+          <a href="./transform.html">CRS transform</a>
+          <a href="./transform_pipeline.html">Pipeline transform</a>
+          <a href="./projinfo.html">projinfo</a>
+          <a href="./">Home</a>
+
+          <a
+            href="https://github.com/jjimenezshaw/wasm-proj"
+            target="_blank"
+            class="github-link"
+            title="View source on GitHub"></a>
+        </nav>
+      </header>
+
+      <div id="app-content">
+        <div class="full-width-section">
+          <h2>PROJ powered by WebAssembly</h2>
+          <p class="description-text">
+            Welcome to Wasm PROJ. This library and collection of utilities brings
+            <a href="https://proj.org">PROJ</a>
+            into your web browser. Because it runs entirely client-side via WebAssembly, your data never leaves your
+            machine, ensuring complete privacy and fast performance without the need for a backend server.
+            <br >
+            When needed the page may request portions of grid files hosted in
+            <a href="https://cdn.proj.org">PROJ's CDN</a>.
+          </p>
+          <p class="description-text">
+            <a href="https://proj.org">PROJ</a>
+            is a generic coordinate transformation software that transforms geospatial coordinates from one coordinate
+            reference system (CRS) to another. This includes cartographic projections as well as geodetic
+            transformations.
+          </p>
+        </div>
+
+        <div class="full-width-section">
+          <div class="tool-item">
+            <h3>CRS Transform</h3>
+            <p class="description-text">
+              Transform coordinates between different Coordinate Reference Systems (CRS). Easily search through the
+              <a href="https://epsg.org">EPSG</a>
+              or <a href="https://github.com/Esri/projection-engine-db-doc/">ESRI</a> catalogs, or define a custom
+              system using free text as <a href="https://www.ogc.org/standards/wkt-crs/">WKT</a>,
+              <a href="https://proj.org/specifications/projjson.html">PROJJSON</a>
+              or even a proj4 string.
+            </p>
+            <a href="./transform.html" class="btn-transform btn-link">Open CRS Transform</a>
+          </div>
+
+          <hr class="section-divider" >
+
+          <div class="tool-item">
+            <h3>Pipeline Transform</h3>
+            <p class="description-text">
+              PROJ allows to define a transformation as a
+              <a href="https://proj.org/operations/pipeline.html">pipeline</a>.
+              <br >
+              If you know your pipeline, run that transformation for a buch of coordinates. It is kind of similar to
+              <a href="https://proj.org/apps/cct.html">cct</a>
+              application.
+            </p>
+            <a href="./transform_pipeline.html" class="btn-transform btn-link">Open Pipeline Transform</a>
+          </div>
+
+          <hr class="section-divider" >
+
+          <div class="tool-item">
+            <h3>projinfo</h3>
+            <p class="description-text">
+              Run the <a href="https://proj.org/apps/projinfo.html">projinfo</a> command-line application in your
+              browser. Query the PROJ database for CRS information, view detailed WKT and PROJ string definitions, and
+              deeply inspect coordinate operations and pipeline parameters.
+            </p>
+            <a href="./projinfo.html" class="btn-transform btn-link">Open projinfo</a>
+          </div>
+        </div>
+      </div>
+      <footer class="app-footer">
+        <p>
+          &copy; 2026 <a href="https://github.com/jjimenezshaw/">Javier Jimenez Shaw</a>. Licensed under the
+          <a href="https://github.com/jjimenezshaw/wasm-proj/blob/master/LICENSE" target="_blank">MIT License</a>.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

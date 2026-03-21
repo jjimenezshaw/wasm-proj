@@ -1,0 +1,13 @@
+/* index.css - specific layout tweaks for the home page */
+
+.tool-item {
+    padding: 0.5rem 0;
+}
+
+/* Makes an <a> tag behave geometrically like a <button> */
+.btn-link {
+    display: inline-block;
+    text-decoration: none;
+    box-sizing: border-box;
+    margin-top: 0.5rem;
+}

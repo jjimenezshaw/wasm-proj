@@ -1,0 +1,7 @@
+#output-text {
+    white-space: pre-wrap;
+    background-color: var(--readonly-bg);
+    border: 1px solid #ccc;
+    padding: 1em;
+    border-radius: 5px;
+}

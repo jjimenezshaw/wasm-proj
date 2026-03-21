@@ -1,0 +1,28 @@
+.freetext-text {
+    min-height: 90px;
+}
+
+.container {
+    gap: 0.25rem;
+}
+
+.swap-wrapper {
+    align-self: flex-start;
+    margin-top: 1rem;
+}
+
+.swap-btn {
+    padding: 0.25rem 0.25rem;
+    line-height: 1;
+}
+
+@media (max-width: 768px) {
+    .swap-wrapper {
+        align-self: center;
+        margin: 0;
+    }
+
+    .swap-btn {
+        transform: rotate(90deg);
+    }
+}
