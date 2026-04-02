@@ -91,6 +91,28 @@ class Keeper {
     }
 
     /**
+     * Creates a C pointer with the vector of strings as PROJ expects
+     * @param {string[]} options - vector of options to add
+     * @returns {number} - the created pointer
+     */
+    multi_string_options(options) {
+        if (!Array.isArray(options)) {
+            throw Error('multi_string_options expects an array');
+        }
+        const len = options.length;
+        // We need 4*(n + 1) bytes (32-bit pointers: n for the strings, one for NULL)
+        const options_array_ptr = this.malloc((len + 1) * 4);
+        let i = 0;
+        for (; i < len; i++) {
+            const opt = options[i];
+            const opt_ptr = this.string(opt);
+            this.proj.setValue(options_array_ptr + 4 * i, opt_ptr, 'i32');
+        }
+        this.proj.setValue(options_array_ptr + 4 * i, 0, 'i32'); // null terminator.
+        return options_array_ptr;
+    }
+
+    /**
      * Destroys every pointer registered.
      */
     clean() {
@@ -299,15 +321,7 @@ class Transformer {
             const PROJ_5 = 0;
             const PJ_WKT2_2019 = 2;
 
-            const option_str = 'MULTILINE=YES';
-            const option_str_ptr = keep.string(option_str);
-
-            // We need 8 bytes (two 32-bit pointers: one for the string, one for NULL)
-            const options_array_ptr = keep.malloc(8);
-
-            this.proj.setValue(options_array_ptr, option_str_ptr, 'i32');
-            this.proj.setValue(options_array_ptr + 4, 0, 'i32'); // null terminator.
-
+            const options_array_ptr = keep.multi_string_options(['MULTILINE=YES']);
             const proj_5 = this.proj._proj_as_proj_string(this.ctx, operation_ptr, PROJ_5, options_array_ptr);
             const wkt2 = this.proj._proj_as_wkt(this.ctx, operation_ptr, PJ_WKT2_2019, 0);
 
@@ -338,6 +352,7 @@ class Proj {
         this.init_promise;
         this.ptr_size;
         this.geod_geodesic_ptr; // GRS80. Here for performance.
+        this.user_db = { name: [], aux_names: [] };
     }
 
     /**
@@ -412,6 +427,55 @@ class Proj {
                 console.error(`ProjModuleFactory init error: ${err}`);
                 on_failed?.(err);
             });
+    }
+
+    /**
+     * Set main and/or auxiliary databases.
+     * To reset the main or auxiliary dbs, set a null. undefined will keep the previous state.
+     * Notice that the usage of auxiliary dbs in PROJ slows down the access, even to the main db.
+     * The names of the aux_dbs must be different. They are used in the local wasm FS.
+     * @example
+     * set_database({aux_dbs: [{name:'nsrs_proj.db', array_buffer: ...}] })
+     * @param {Object} args
+     * @param {{name: string, array_buffer: ArrayBuffer}} [args.db] - Name and content of the main db.
+     * @param {{name: string, array_buffer: ArrayBuffer}[]} [args.aux_dbs] - string of name and content of the aux dbs.
+     * @returns {number} - True in case of success, as in proj_context_set_database_path
+     */
+    set_database(args) {
+        const keep = new Keeper(this.proj);
+        try {
+            const process_dbs = (names, dbs) => {
+                for (const to_unlink of names) {
+                    this.proj.FS.unlink(to_unlink);
+                }
+                names.splice(0); // delete the content, keep the same object by ref.
+                if (dbs) {
+                    dbs.forEach((db) => {
+                        if (db) {
+                            const name = `/${db.name}`;
+                            const uint8_array = new Uint8Array(db.array_buffer);
+                            this.proj.FS.writeFile(name, uint8_array);
+                            names.push(name);
+                        }
+                    });
+                }
+            };
+
+            if (args.db !== undefined) {
+                process_dbs(this.user_db.name, [args.db]);
+            }
+            const name_ptr = this.user_db.name.length ? keep.string(this.user_db.name[0]) : 0;
+
+            if (args.aux_dbs !== undefined) {
+                process_dbs(this.user_db.aux_names, args.aux_dbs);
+            }
+            const aux_names_ptr = this.user_db.aux_names ? keep.multi_string_options(this.user_db.aux_names) : 0;
+
+            const res = this.proj._proj_context_set_database_path(this.ctx, name_ptr, aux_names_ptr, 0);
+            return res;
+        } finally {
+            keep.clean();
+        }
     }
 
     // in case you want to clean the variables and memory, call this method.
@@ -641,7 +705,9 @@ class Proj {
 
             const ctx = this.proj._proj_context_clone(this.ctx);
             this.proj._proj_context_set_enable_network(ctx, args.use_network);
-            let P = this.proj._proj_create_crs_to_crs_from_pj(ctx, P_src, P_tgt, area, 0);
+            // In case of use_network, force "only best", to not provide a wrong result if there is a network problem
+            const options_array_ptr = args.use_network ? keep.multi_string_options(['ONLY_BEST=YES']) : 0;
+            let P = this.proj._proj_create_crs_to_crs_from_pj(ctx, P_src, P_tgt, area, options_array_ptr);
             if (P === 0) {
                 this.proj._proj_destroy(ctx);
                 throw new Error('proj_create_crs_to_crs_from_pj returned NULL.');
