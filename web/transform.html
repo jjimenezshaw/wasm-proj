@@ -12,6 +12,7 @@
     <script src="./proj/projFunctions.js"></script>
     <script src="./proj/projBridge.js"></script>
 
+    <script src="./common.js"></script>
     <script src="./transform.js"></script>
   </head>
 
@@ -56,6 +57,41 @@
               <input type="checkbox" id="use-network" checked >
               Use network
             </label>
+            <label class="checkbox-label" title="Show in the list of CRS the deprecated ones">
+              <input type="checkbox" id="show-deprecated" >
+              Show deprecated
+            </label>
+            <button type="button" id="btn-advanced" class="btn-small btn-toggle">
+              Advanced Options <span class="toggle-icon">▼</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="advanced-options-panel" class="advanced-panel hidden">
+          <div class="field-inline">
+            <div class="file-group">
+              <label>Change Main Database</label>
+              <div class="file-input-wrapper">
+                <button type="button" class="btn-small" data-load="db-file">Select File</button>
+                <input type="file" id="db-file" class="hidden-file-input" accept=".db,.sqlite" >
+                <span id="db-file-name" class="file-name-display">No file selected</span>
+                <button type="button" class="btn-clear-file hidden" data-clear-file="db-file" title="Remove file">
+                  &times;
+                </button>
+              </div>
+            </div>
+
+            <div class="file-group">
+              <label>Set Auxiliary Databases</label>
+              <div class="file-input-wrapper">
+                <button type="button" class="btn-small" data-load="aux-files">Select Files</button>
+                <input type="file" id="aux-files" class="hidden-file-input" multiple accept=".db,.sqlite" >
+                <span id="aux-files-name" class="file-name-display">No files selected</span>
+                <button type="button" class="btn-clear-file hidden" data-clear-file="aux-files" title="Remove files">
+                  &times;
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -82,7 +118,12 @@
                     <button type="button" class="clear-btn" data-clear="source-horizontal-input" title="Clear field">
                       &times;
                     </button>
-                    <input type="text" id="source-horizontal-input" placeholder="Type to search..." autocomplete="off" >
+                    <input
+                      type="text"
+                      id="source-horizontal-input"
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
                     <div class="combo-dropdown">
                       <select id="source-horizontal-select" class="combo-select" size="6"></select>
                     </div>
@@ -104,7 +145,12 @@
                     <button type="button" class="clear-btn" data-clear="source-vertical-input" title="Clear field">
                       &times;
                     </button>
-                    <input type="text" id="source-vertical-input" placeholder="Type to search..." autocomplete="off" >
+                    <input
+                      type="text"
+                      id="source-vertical-input"
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
                     <div class="combo-dropdown">
                       <select id="source-vertical-select" class="combo-select" size="6"></select>
                     </div>
@@ -208,7 +254,12 @@
                     <button type="button" class="clear-btn" data-clear="target-horizontal-input" title="Clear field">
                       &times;
                     </button>
-                    <input type="text" id="target-horizontal-input" placeholder="Type to search..." autocomplete="off" >
+                    <input
+                      type="text"
+                      id="target-horizontal-input"
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
                     <div class="combo-dropdown">
                       <select id="target-horizontal-select" class="combo-select" size="6"></select>
                     </div>
@@ -230,7 +281,12 @@
                     <button type="button" class="clear-btn" data-clear="target-vertical-input" title="Clear field">
                       &times;
                     </button>
-                    <input type="text" id="target-vertical-input" placeholder="Type to search..." autocomplete="off" >
+                    <input
+                      type="text"
+                      id="target-vertical-input"
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
                     <div class="combo-dropdown">
                       <select id="target-vertical-select" class="combo-select" size="6"></select>
                     </div>

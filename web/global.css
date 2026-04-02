@@ -223,6 +223,89 @@ label {
     font-weight: 600;
 }
 
+/* --- Advanced Options Panel --- */
+.btn-toggle {
+    background-color: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    margin-left: auto; /* Pushes it to the right side of the flex row */
+}
+
+.btn-toggle:hover {
+    background-color: var(--bg-element-alt);
+}
+
+.toggle-icon {
+    font-size: 0.7em;
+    margin-left: 0.35rem;
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+/* Rotates the arrow when the panel is open */
+.btn-toggle.open .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.advanced-panel {
+    background-color: var(--bg-element);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.file-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1; /* Allows the two inputs to sit 50/50 side-by-side */
+}
+
+.file-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-main);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+.file-name-display {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Adds '...' if the file name is too long */
+}
+
+/* Changes color when a file is actively selected */
+.file-name-display.has-file {
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+.btn-clear-file {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+}
+
+.btn-clear-file:hover {
+    color: var(--color-primary);
+}
+
 /* --- Form Elements --- */
 .field {
     margin-bottom: 0.75rem;
@@ -259,9 +342,10 @@ label {
 
 .checkbox-group {
     display: flex;
-    gap: 2rem;
+    gap: 0.5rem 2rem;
     padding-top: 0.5rem;
     border-top: 1px solid var(--border-main);
+    flex-wrap: wrap;
 }
 .checkbox-label {
     display: flex;
