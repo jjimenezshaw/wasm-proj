@@ -46,7 +46,10 @@ function handleFileLoad(event, targetId) {
 }
 
 function updateURLParams() {
+    const oldParams = new URLSearchParams(window.location.search);
+
     const params = new URLSearchParams();
+    params.set('nsrs_aux_db', oldParams.get('nsrs_aux_db') ?? '');
 
     params.set('st', document.querySelector('input[name="source_type"]:checked').value);
     params.set('tt', document.querySelector('input[name="target_type"]:checked').value);
@@ -63,6 +66,7 @@ function updateURLParams() {
 
     params.set('p3d', document.getElementById('promote-3d').checked ? '1' : '');
     params.set('net', document.getElementById('use-network').checked ? '1' : '');
+    params.set('depr', document.getElementById('show-deprecated').checked ? '1' : '');
     params.set('coords', document.getElementById('source-coordinates').value);
 
     const keysToDelete = [];
@@ -77,20 +81,24 @@ function updateURLParams() {
     window.history.replaceState({ path: newUrl }, '', newUrl);
 }
 
-function loadFromURLParams(crs_list, searchParams = undefined) {
+async function loadFromURLParams(crs_list, searchParams = undefined) {
     const params = searchParams ?? new URLSearchParams(window.location.search);
+
+    if (params.get('nsrs_aux_db') === '1') {
+        await loadAuxDbUrl(crs_list);
+    }
 
     if (params.has('st'))
         document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
     if (params.has('tt'))
         document.querySelector(`input[name="target_type"][value="${params.get('tt')}"]`).checked = true;
 
-    document.getElementById('source-horizontal-input').value = getFullDescriptor(crs_list, params.get('sh')) ?? '';
-    document.getElementById('source-vertical-input').value = getFullDescriptor(crs_list, params.get('sv')) ?? '';
+    document.getElementById('source-horizontal-input').value = getFullDescriptor(crs_list, params.get('sh'), true);
+    document.getElementById('source-vertical-input').value = getFullDescriptor(crs_list, params.get('sv'), true);
     document.getElementById('source-freetext').value = params.get('sf') ?? '';
 
-    document.getElementById('target-horizontal-input').value = getFullDescriptor(crs_list, params.get('th')) ?? '';
-    document.getElementById('target-vertical-input').value = getFullDescriptor(crs_list, params.get('tv')) ?? '';
+    document.getElementById('target-horizontal-input').value = getFullDescriptor(crs_list, params.get('th'), true);
+    document.getElementById('target-vertical-input').value = getFullDescriptor(crs_list, params.get('tv'), true);
     document.getElementById('target-freetext').value = params.get('tf') ?? '';
 
     if (params.has('se')) {
@@ -105,6 +113,7 @@ function loadFromURLParams(crs_list, searchParams = undefined) {
     document.getElementById('source-coordinates').value = params.get('coords') ?? '';
     if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
     if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
+    if (params.has('depr')) document.getElementById('show-deprecated').checked = params.get('depr') === '1';
 
     for (const id of [
         'source-horizontal-input',
@@ -117,7 +126,35 @@ function loadFromURLParams(crs_list, searchParams = undefined) {
     return params.get('run') === '1';
 }
 
-function swapSourceTarget(crs_list) {
+async function loadAuxDbUrl(crs_list) {
+    const aux_db_url = 'https://jjimenezshaw.github.io/NSRS-2022-PROJ/nsrs_proj.db';
+    console.time(`loading ${aux_db_url}`);
+    try {
+        const response = await fetch(aux_db_url);
+        const file = await response.blob();
+        const filename = aux_db_url.split('/').pop();
+        const dbs = [{ name: filename, array_buffer: await file.arrayBuffer() }];
+        proj.set_database({ aux_dbs: dbs });
+        await g_proj_worker.set_database({ aux_dbs: dbs });
+
+        const id = 'aux-files';
+        const display = document.getElementById(`${id}-name`);
+        const clearBtn = document.querySelector(`[data-clear-file="${id}"]`);
+        display.textContent = filename;
+        display.classList.add('has-file');
+        clearBtn.classList.remove('hidden');
+        crs_list.splice(0, Infinity, ...get_crs_list());
+        updateComboboxes(crs_list);
+        return true;
+    } catch (e) {
+        console.error(`error loading auxdb from ${aux_db_url}`, e);
+    } finally {
+        console.timeEnd(`loading ${aux_db_url}`);
+    }
+    return false;
+}
+
+async function swapSourceTarget(crs_list) {
     updateURLParams();
 
     const params = new URLSearchParams(window.location.search);
@@ -146,7 +183,7 @@ function swapSourceTarget(crs_list) {
         newParams.set('coords', params.get('coords') || '');
     }
 
-    loadFromURLParams(crs_list, newParams);
+    await loadFromURLParams(crs_list, newParams);
     updateAfterLoadUrl(crs_list);
     validateForm();
 }
@@ -322,16 +359,20 @@ function findInCrsList(authCode, crs_list) {
     return inList;
 }
 
-function populateSelect(selectElement, dataArray) {
+function populateSelect(selectElement, dataArray, filter) {
+    selectElement.innerHTML = '';
     const fragment = document.createDocumentFragment();
     dataArray.forEach((item) => {
-        const option = document.createElement('option');
-        option.value = item;
-        option.textContent = item;
-        option.title = item;
-        fragment.appendChild(option);
+        if (!filter || filter(item)) {
+            const option = document.createElement('option');
+            option.value = item;
+            option.textContent = item;
+            option.title = item;
+            fragment.appendChild(option);
+        }
     });
     selectElement.appendChild(fragment);
+    //selectElement.selectedIndex = -1;
 }
 
 function clearField(targetId) {
@@ -362,12 +403,10 @@ function manageVertical(prefix, crs_list) {
 
 // prefix: source, target
 // type: horizontal, vertical
-function setupCustomCombobox(prefix, type, dataArray, crs_list) {
+function setupCustomCombobox(prefix, type) {
     const container = document.getElementById(`${prefix}-${type}-container`);
     const input = document.getElementById(`${prefix}-${type}-input`);
     const select = document.getElementById(`${prefix}-${type}-select`);
-
-    populateSelect(select, dataArray);
     select.selectedIndex = -1;
 
     input.addEventListener('focus', () => container.classList.add('open'));
@@ -375,12 +414,12 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
 
     container.addEventListener('focusout', (e) => {
         const authCode = getCrsAuthCode(e.target.value);
-        if (authCode[0] && !findInCrsList(authCode, crs_list)) {
-            e.target.classList.add('invalid');
-            e.target.title = 'Element not in the catalog.';
+        if (authCode[0] && !findInCrsList(authCode, g_crs_list)) {
+            input.classList.add('invalid');
+            input.title = 'Element not in the catalog.';
         } else {
-            e.target.classList.remove('invalid');
-            e.target.title = '';
+            input.classList.remove('invalid');
+            input.title = '';
         }
         if (!container.contains(e.relatedTarget)) {
             container.classList.remove('open');
@@ -388,6 +427,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
     });
 
     function handleSelection(val) {
+        val = val.replace(/ \{.{1,2}\}$/, '');
         input.value = val;
         input.title = val;
         container.classList.remove('open');
@@ -397,7 +437,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
 
         updateMetadata(prefix);
         updateCRSLink(prefix, type, val);
-        if (type === 'horizontal') manageVertical(prefix, crs_list);
+        if (type === 'horizontal') manageVertical(prefix, g_crs_list);
         validateForm();
     }
 
@@ -411,6 +451,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         }
     });
 
+    // apparently redundant with 'focusout', but needed in some browsers that do not trigger it on the void
     document.addEventListener('click', (e) => {
         if (!container.contains(e.target)) container.classList.remove('open');
     });
@@ -462,7 +503,7 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         updateCRSLink(prefix, type, inputText);
         updateMetadata(prefix);
 
-        // many people writes WGS84
+        // many people write WGS84
         const filterArray = inputText.toLowerCase().replace('wgs84', 'wgs 84').split(' ');
 
         function filter(text) {
@@ -471,18 +512,10 @@ function setupCustomCombobox(prefix, type, dataArray, crs_list) {
         }
 
         if (isSafari) {
+            const [horizontalData, verticalData] = getDataLists(g_crs_list);
+            const data = type === 'horizontal' ? horizontalData : verticalData;
             select.innerHTML = '';
-            const fragment = document.createDocumentFragment();
-            for (let i = 0; i < dataArray.length; i++) {
-                if (filter(dataArray[i])) {
-                    const option = document.createElement('option');
-                    option.value = dataArray[i];
-                    option.title = dataArray[i];
-                    option.textContent = dataArray[i];
-                    fragment.appendChild(option);
-                }
-            }
-            select.appendChild(fragment);
+            populateSelect(select, data, (t) => filter(t));
         } else {
             const options = select.options;
             for (let i = 0; i < options.length; i++) {
@@ -553,6 +586,7 @@ async function handleTransform(proj_worker) {
 
     const output = document.getElementById('target-coordinates');
     output.value = '... computing ...';
+    console.time('transformation');
 
     const promote3D = document.getElementById('promote-3d').checked;
     const useNetwork = document.getElementById('use-network').checked;
@@ -599,6 +633,7 @@ async function handleTransform(proj_worker) {
         }
     } finally {
         if (transformer) await transformer.dispose();
+        console.timeEnd('transformation');
     }
 }
 
@@ -619,13 +654,13 @@ function getCrsId(descriptor) {
     return '';
 }
 
-function getFullDescriptor(crs_list, id) {
+function getFullDescriptor(crs_list, id, return_id) {
     const [auth, code] = (id ?? '').split(':');
     const found = crs_list.find((e) => e.auth === auth && e.code === code);
     if (found) {
         return `${found.auth}:${found.code} - ${found.name}`;
     }
-    return '';
+    return return_id ? id : undefined;
 }
 
 function updateAfterLoadUrl(crs_list) {
@@ -641,10 +676,79 @@ function updateAfterLoadUrl(crs_list) {
     updateCRSLink('target', 'vertical', getCrsId(document.getElementById('target-vertical-input').value));
 }
 
+function setupComboboxes(crs_list) {
+    setupCustomCombobox('source', 'horizontal');
+    setupCustomCombobox('source', 'vertical');
+    setupCustomCombobox('target', 'horizontal');
+    setupCustomCombobox('target', 'vertical');
+
+    updateComboboxes(crs_list);
+}
+
+function updateComboboxSelect(select, dataArray) {
+    select.innerHTML = '';
+    populateSelect(select, dataArray);
+}
+
+function updateCombobox(prefix, type, dataArray) {
+    const select = document.getElementById(`${prefix}-${type}-select`);
+    updateComboboxSelect(select, dataArray);
+}
+
+function getDataLists(crs_list) {
+    const horizontalData = [];
+    const verticalData = [' - none / ellipsodial height'];
+    const PJ_TYPE_GEOCENTRIC_CRS = 10;
+    const PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
+    const PJ_TYPE_GEOGRAPHIC_3D_CRS = 13;
+    const PJ_TYPE_VERTICAL_CRS = 14;
+    const PJ_TYPE_PROJECTED_CRS = 15;
+    const PJ_TYPE_COMPOUND_CRS = 16;
+    function typeToStr(type) {
+        switch (type) {
+            case PJ_TYPE_GEOCENTRIC_CRS:
+                return 'GC';
+            case PJ_TYPE_GEOGRAPHIC_2D_CRS:
+                return '2D';
+            case PJ_TYPE_GEOGRAPHIC_3D_CRS:
+                return '3D';
+            case PJ_TYPE_PROJECTED_CRS:
+                return 'P';
+            case PJ_TYPE_COMPOUND_CRS:
+                return 'C';
+        }
+        return '';
+    }
+    const showDeprecated = document.getElementById('show-deprecated').checked;
+    crs_list.forEach((e) => {
+        const text = `${e.auth}:${e.code} - ${e.name}`;
+        if (!showDeprecated && e.deprecated) {
+            // do not include deprecated
+        } else if (e.type === PJ_TYPE_VERTICAL_CRS) {
+            verticalData.push(text);
+        } else {
+            horizontalData.push(`${text}  {${typeToStr(e.type)}}`);
+        }
+    });
+    return [horizontalData, verticalData];
+}
+
+function updateComboboxes(crs_list) {
+    const [horizontalData, verticalData] = getDataLists(crs_list);
+    updateCombobox('source', 'horizontal', horizontalData, crs_list);
+    updateCombobox('source', 'vertical', verticalData, crs_list);
+    updateCombobox('target', 'horizontal', horizontalData, crs_list);
+    updateCombobox('target', 'vertical', verticalData, crs_list);
+}
+
 function setupEventListeners(proj_worker, proj, crs_list) {
     // 1. Checkboxes & simple inputs
     ['promote-3d', 'use-network'].forEach((id) => {
         document.getElementById(id).addEventListener('change', () => validateForm());
+    });
+    document.getElementById('show-deprecated').addEventListener('change', () => {
+        updateComboboxes(crs_list);
+        updateURLParams();
     });
 
     [
@@ -697,15 +801,40 @@ function setupEventListeners(proj_worker, proj, crs_list) {
         });
     });
     document.querySelectorAll('[data-swap]').forEach((btn) => {
-        btn.addEventListener('click', () => swapSourceTarget(crs_list));
+        btn.addEventListener('click', async () => swapSourceTarget(crs_list));
     });
 
     // 6. Main Action Buttons
     document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
     document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
+
+    setupAdvancedOptions(proj, proj_worker, () => {
+        updateComboboxes(get_crs_list());
+    });
+}
+
+/**
+ * "Backdoor" to enable PROJ debug messages (as errors) in the console
+ * @param {number} level
+ * @returns
+ */
+async function _proj_set_log_level(level) {
+    console.log(proj.log_level(level), await g_proj_worker.log_level(level));
+    return true;
 }
 
 let proj;
+let g_crs_list;
+let g_proj_worker; // just for debug function proj_set_log_level
+
+function get_crs_list() {
+    const crs_list = proj.crs_list().filter((e, i, list) => {
+        // there are some consecutive repeated elements, like EPSG:25832
+        return i === 0 || e.auth !== list[i - 1].auth || e.code !== list[i - 1].code;
+    });
+    g_crs_list = crs_list;
+    return crs_list;
+}
 
 async function load() {
     const appContent = document.getElementById('app-content');
@@ -713,50 +842,37 @@ async function load() {
     loader.classList.remove('hidden');
 
     console.log('Downloading resources...', Date());
+    let proj_worker;
+    let run;
+    try {
+        proj = new Proj();
+        await proj.init();
+        const info = proj.proj_info();
+        console.log(info);
+        document.getElementById('proj-version').innerText = info.version;
+        document.getElementById('proj-version').title = info.compilation_date;
+        const crs_list = get_crs_list();
+        /////////////////////////
+        const bridge = new WorkerBridge();
+        proj_worker = bridge.create_main_proxy();
+        g_proj_worker = proj_worker;
+        await proj_worker.init();
 
-    proj = new Proj();
-    await proj.init();
-    const info = proj.proj_info();
-    console.log(info);
-    document.getElementById('proj-version').innerText = info.version;
-    document.getElementById('proj-version').title = info.compilation_date;
-    const crs_list = proj.crs_list().filter((e, i, list) => {
-        // there are some consecutive repeated elements, like EPSG:25832
-        return i === 0 || e.auth !== list[i - 1].auth || e.code !== list[i - 1].code;
-    });
-    /////////////////////////
-    const bridge = new WorkerBridge();
-    const proj_worker = bridge.create_main_proxy();
-    await proj_worker.init();
+        setupComboboxes(crs_list);
 
-    const horizontalData = [];
-    const verticalData = [' - none / ellipsodial height'];
-    const PJ_TYPE_VERTICAL_CRS = 14;
-    crs_list.forEach((e) => {
-        const text = `${e.auth}:${e.code} - ${e.name}`;
-        if (e.type === PJ_TYPE_VERTICAL_CRS) {
-            verticalData.push(text);
-        } else {
-            horizontalData.push(text);
-        }
-    });
+        run = await loadFromURLParams(crs_list);
+        updateAfterLoadUrl(crs_list);
 
-    setupCustomCombobox('source', 'horizontal', horizontalData, crs_list);
-    setupCustomCombobox('source', 'vertical', verticalData, crs_list);
-    setupCustomCombobox('target', 'horizontal', horizontalData, crs_list);
-    setupCustomCombobox('target', 'vertical', verticalData, crs_list);
-
-    const run = loadFromURLParams(crs_list);
-
-    updateAfterLoadUrl(crs_list);
-
-    setupEventListeners(proj_worker, proj, crs_list);
-
-    loader.classList.add('hidden');
-    appContent.classList.remove('loading-state');
-    console.log('Ready.', Date());
-
-    if (run) handleTransform(proj_worker);
+        setupEventListeners(proj_worker, proj, crs_list);
+        console.log('Ready.', Date());
+    } catch (e) {
+        console.error(e);
+        alert(`Problems loading the library. Unexpected behaviour.\n\n${e.message}`);
+    } finally {
+        loader.classList.add('hidden');
+        appContent.classList.remove('loading-state');
+    }
+    if (run && proj_worker) handleTransform(proj_worker);
 }
 
 window.addEventListener('load', load);
