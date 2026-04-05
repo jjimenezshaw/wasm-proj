@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
+    <title>Wasm PROJ - Distortion Factors</title>
+    <link rel="stylesheet" href="./global.css" >
+    <link rel="stylesheet" href="./factors.css" >
+
+    <script src="./release.js"></script>
+
+    <script src="./proj/wasm/projModule.js"></script>
+    <script src="./proj/projFunctions.js"></script>
+    <script src="./proj/projBridge.js"></script>
+
+    <script src="./common.js"></script>
+    <script src="./factors.js"></script>
+  </head>
+  <body>
+    <div class="main-wrapper">
+      <div id="loading-indicator" class="hidden">&#8987;</div>
+
+      <header class="app-header">
+        <div class="header-title">Wasm PROJ - factors</div>
+        <nav class="header-nav">
+          <a href="./transform.html">CRS transform</a>
+          <a href="./transform_pipeline.html">Pipeline transform</a>
+          <a href="./projinfo.html">projinfo</a>
+          <a href="./factors.html">Distortion factors</a>
+          <a href="./">Home</a>
+
+          <a
+            href="https://github.com/jjimenezshaw/wasm-proj"
+            target="_blank"
+            class="github-link"
+            title="View source on GitHub"></a>
+        </nav>
+      </header>
+
+      <div id="app-content" class="loading-state">
+        <div class="full-width-section">
+          <h2>Distortion Factors</h2>
+          <div class="description-text">
+            Compute and visualize Tissot's indicatrix parameters and distortion factors to analyze map projection
+            distortions. Input your coordinates below to generate scaling and convergence metrics. Implemented with
+            <a href="https://proj.org" target="_blank">PROJ</a>
+            <span id="proj-version"></span>
+
+            <details class="extended-docs">
+              <summary class="docs-toggle-link">More information</summary>
+              <div class="docs-content">
+                <p>
+                  Most of the parameters are calculated with
+                  <a href="https://proj.org/development/reference/datatypes.html#c.PJ_FACTORS" target="_blank"
+                    >proj_factors()</a
+                  >. See
+                  <a href="https://neacsu.net/geodesy/snyder/2-general/sect_4/" target="_blank"
+                    >Map Projections - A Working Manual. Snyder 1987</a
+                  >
+                  for details.
+                </p>
+                <p>
+                  The partial derivatives ∂x/∂λ, ∂x/∂φ, ∂y/∂φ, ∂y/∂φ are computed for an sphere or ellipsoid with a=1.
+                </p>
+                <p>
+                  The "Elevation Scale Factor" is computed as Ra/(Ra + h) being Ra the
+                  <a href="https://en.wikipedia.org/wiki/Earth_radius#Non-directional_(Gaussian_and_mean)"
+                    >Gaussian radius at that latitude</a
+                  >
+                  and h the ellipsoidal height. The "Combined Scale Factor" is computed only when h and k are almost
+                  equal.
+                </p>
+                <p>
+                  Selecting a vertical CRS that has a geoid model in <a href="https://cdn.proj.org/">PROJ-data</a>
+                  will convert those orthometric heights into ellipsoidal heights if inputs are in Easting/Northing or
+                  N/E. This is useful only if you care about the "Elevation Scale Factor". Input in Lat/Lot are always
+                  with ellipsoidal heights.
+                </p>
+                <p>
+                  You can also use
+                  <a href="https://proj.org/en/stable/operations/projections/index.html">projections from PROJ</a>
+                  in the "Free Text" mode.
+                </p>
+              </div>
+            </details>
+          </div>
+
+          <div class="checkbox-group">
+            <label
+              class="checkbox-label"
+              title="Enables querying available high-accuracy transformation grids over the network. It can be slower.">
+              <input type="checkbox" id="use-network" checked >
+              Use network
+            </label>
+            <label class="checkbox-label" title="Show in the list of CRS the deprecated ones">
+              <input type="checkbox" id="show-deprecated" >
+              Show deprecated
+            </label>
+            <button type="button" id="btn-advanced" class="btn-small btn-toggle">
+              Advanced Options <span class="toggle-icon">▼</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="advanced-options-panel" class="advanced-panel hidden">
+          <div class="field-inline">
+            <div class="file-group">
+              <label>Change Main Database</label>
+              <div class="file-input-wrapper">
+                <button type="button" class="btn-small" data-load="db-file">Select File</button>
+                <input type="file" id="db-file" class="hidden-file-input" accept=".db,.sqlite" >
+                <span id="db-file-name" class="file-name-display">No file selected</span>
+                <button type="button" class="btn-clear-file hidden" data-clear-file="db-file" title="Remove file">
+                  &times;
+                </button>
+              </div>
+            </div>
+
+            <div class="file-group">
+              <label>Set Auxiliary Databases</label>
+              <div class="file-input-wrapper">
+                <button type="button" class="btn-small" data-load="aux-files">Select Files</button>
+                <input type="file" id="aux-files" class="hidden-file-input" multiple accept=".db,.sqlite" >
+                <span id="aux-files-name" class="file-name-display">No files selected</span>
+                <button type="button" class="btn-clear-file hidden" data-clear-file="aux-files" title="Remove files">
+                  &times;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="container">
+          <div class="column">
+            <h2>Projected CRS</h2>
+
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="source_type" value="combo" checked >
+                Select from Catalog
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="source_type" value="freetext" >
+                Free Text
+              </label>
+            </div>
+
+            <div id="source-combo-group">
+              <div class="field">
+                <label>Horizontal CRS <span class="required">*</span></label>
+                <div class="input-with-link">
+                  <div class="combo-container" id="source-horizontal-container">
+                    <button type="button" class="clear-btn" data-clear="source-horizontal-input" title="Clear field">
+                      &times;
+                    </button>
+                    <input
+                      type="text"
+                      id="source-horizontal-input"
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
+                    <div class="combo-dropdown">
+                      <select id="source-horizontal-select" class="combo-select" size="6"></select>
+                    </div>
+                  </div>
+                  <a
+                    href="#"
+                    id="source-horizontal-link"
+                    class="info-link disabled"
+                    target="_blank"
+                    title="Select a CRS to view details"
+                    >ℹ️</a
+                  >
+                </div>
+              </div>
+              <div class="field">
+                <label>Vertical CRS</label>
+                <div class="input-with-link">
+                  <div class="combo-container" id="source-vertical-container">
+                    <button type="button" class="clear-btn" data-clear="source-vertical-input" title="Clear field">
+                      &times;
+                    </button>
+                    <input
+                      type="text"
+                      id="source-vertical-input"
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
+                    <div class="combo-dropdown">
+                      <select id="source-vertical-select" class="combo-select" size="6"></select>
+                    </div>
+                  </div>
+                  <a
+                    href="#"
+                    id="source-vertical-link"
+                    class="info-link disabled"
+                    target="_blank"
+                    title="Select a CRS to view details"
+                    >ℹ️</a
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div id="source-text-group" class="hidden">
+              <div class="field">
+                <div class="flex-header">
+                  <label for="source-freetext">Custom CRS Definition <span class="required">*</span></label>
+                  <button type="button" class="btn-small" data-load="source-file">Load File</button>
+                  <input type="file" id="source-file" class="hidden" >
+                </div>
+                <div class="textarea-container">
+                  <button type="button" class="clear-btn" data-clear="source-freetext" title="Clear field">
+                    &times;
+                  </button>
+                  <textarea
+                    id="source-freetext"
+                    class="freetext-text"
+                    spellcheck="false"
+                    placeholder="Enter custom CRS definition..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Source Metadata</label>
+              <textarea id="source-metadata" readonly placeholder="Metadata will auto-generate..."></textarea>
+            </div>
+          </div>
+
+          <div class="column">
+            <h2>Input Coordinates</h2>
+
+            <div class="field-inline axis-order-group">
+              <label><input type="radio" name="coord_order" value="ll" checked > Lat/Lon/h</label>
+              <label><input type="radio" name="coord_order" value="en" > Easting/Northing</label>
+              <label><input type="radio" name="coord_order" value="ne" > Northing/Easting</label>
+            </div>
+
+            <div class="field">
+              <div class="flex-header">
+                <label>Input Coordinates <span class="required">*</span></label>
+                <button type="button" class="btn-small" data-load="coords-file">Load File</button>
+                <input type="file" id="coords-file" class="hidden" >
+              </div>
+              <div class="textarea-container">
+                <button type="button" class="clear-btn" data-clear="source-coordinates" title="Clear field">
+                  &times;
+                </button>
+                <textarea
+                  id="source-coordinates"
+                  class="mono-space min-h-80"
+                  placeholder="Enter coordinates here (e.g., X Y Z)..."></textarea>
+              </div>
+              <div class="center-btn-container">
+                <button
+                  type="button"
+                  type="button"
+                  class="btn-small"
+                  id="points-in-map"
+                  title="Opens a new tab. Look at the console if it doesn't work.">
+                  Show points in a map
+                </button>
+              </div>
+            </div>
+
+            <div class="compute-container">
+              <button type="button" id="btn-transform" class="btn-transform compute-btn" disabled>
+                Compute Factors
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="computing" class="hidden result-card">... Computing ...</div>
+        <div id="results-section" class="hidden">
+          <div class="results-header">
+            <h2>Results</h2>
+
+            <div class="legend-wrapper" id="diagram-legend">
+              <span class="legend-item" title="Tissot's indicatrix"
+                ><span class="swatch swatch-indicatrix"></span>
+                Indicatrix</span
+              >
+              <span class="legend-item" title="Unit reference circle"
+                ><span class="swatch swatch-circle"></span>
+                Ref. Circle</span
+              >
+              <span class="legend-item" title="Projected meridian"><span class="swatch swatch-mer"></span> Mer.</span>
+              <span class="legend-item" title="Projected parallel"><span class="swatch swatch-par"></span> Par.</span>
+            </div>
+
+            <div class="results-actions">
+              <label class="diagram-toggle-label">
+                <input type="checkbox" id="toggle-diagrams" checked >
+                Show Diagrams
+              </label>
+              <button type="button" id="btn-copy-json" class="btn-small">Copy as JSON</button>
+            </div>
+          </div>
+
+          <div id="cards-container"></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

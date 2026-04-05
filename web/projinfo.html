@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="./global.css" >
     <link rel="stylesheet" href="./projinfo.css" >
 
+    <script src="./release.js"></script>
+
     <script src="./proj/wasm/projModule.js"></script>
     <script src="./proj/projFunctions.js"></script>
 
@@ -24,6 +26,7 @@
           <a href="./transform.html">CRS transform</a>
           <a href="./transform_pipeline.html">Pipeline transform</a>
           <a href="./projinfo.html">projinfo</a>
+          <a href="./factors.html">Distortion factors</a>
           <a href="./">Home</a>
 
           <a
@@ -37,7 +40,7 @@
       <div id="app-content" class="loading-state">
         <div class="full-width-section">
           <h2>projinfo with Wasm PROJ</h2>
-          <p class="description-text">
+          <div class="description-text">
             WASM JavaScript implementation of
             <a href="https://proj.org/apps/projinfo.html" target="_blank">projinfo</a>
             Command Line Application. Implemented with
@@ -47,7 +50,21 @@
             Look at the &gt;
             <a href="https://proj.org/apps/projinfo.html" target="_blank">PROJ documentation</a>
             &lt; to know the correct parameters.
-          </p>
+            <details class="extended-docs">
+              <summary class="docs-toggle-link">More information</summary>
+              <div class="docs-content">
+                <p>
+                  "Enable network" option may produce different results in some queries. For instance ordering the
+                  alternatives for a transformation between two CRSs (like in "-s WGS84 -t DHDN"). However, no real
+                  network request is performed.
+                </p>
+                <p>
+                  Escape symbols like double quotes with "\", as in a sh console. However, enclosing a string (like a
+                  WKT) between single quotes may prevent you to escape every double quote.
+                </p>
+              </div>
+            </details>
+          </div>
         </div>
         <div class="container">
           <div class="column">

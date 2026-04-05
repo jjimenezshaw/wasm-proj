@@ -1,0 +1,206 @@
+/* --- Page Intro --- */
+.page-intro {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.intro-title {
+    margin-bottom: 0.5rem;
+}
+
+.intro-text {
+    color: var(--text-tertiary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* --- Controls & Alignment --- */
+.axis-order-group {
+    margin-bottom: 0.75rem;
+}
+
+.axis-order-label {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+.compute-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.compute-btn {
+    min-width: 200px;
+}
+
+/* --- Results Header & Actions --- */
+#results-section {
+    margin-top: 2rem;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--border-light);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.results-header h2 {
+    margin: 0;
+    border: none;
+    padding: 0;
+}
+
+.results-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto; /* Pushes the checkbox and button to the right */
+}
+
+.diagram-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+/* --- Legend --- */
+.legend-wrapper {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+}
+
+.swatch-indicatrix {
+    background: rgba(249, 115, 22, 0.3);
+    border: 2px solid #f97316;
+}
+.swatch-circle {
+    border: 2px solid #3b82f6;
+}
+.swatch-mer {
+    border: 2px solid darkred;
+}
+.swatch-par {
+    border: 2px solid #1f2937;
+}
+
+/* --- Result Cards --- */
+.result-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-card);
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+}
+
+.card-body {
+    display: flex;
+    gap: 2rem;
+}
+
+.card-data {
+    flex: 3;
+    overflow-x: auto; /* Prevents tables from breaking layout on small screens */
+}
+
+.card-visual {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #ffffff;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+/* --- Parameters Table --- */
+.params-flex-container {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 1.5rem;
+    row-gap: 0.5rem;
+    align-items: flex-start; /* Keeps them aligned to the top */
+}
+
+.table-col {
+    flex: 1 1 330px;
+    min-width: 0; /* Prevents the div from blowing out its flex bounds */
+}
+
+.params-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.params-table tbody tr:nth-child(even) {
+    /* A very soft, 2% opacity black that creates a subtle light gray band */
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.params-table th,
+.params-table td {
+    padding: 0.1rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.params-table th {
+    color: var(--text-tertiary);
+    font-weight: 500;
+    width: 60%;
+}
+
+.params-table td {
+    font-family: monospace;
+    color: var(--text-main);
+}
+
+/* --- Visibility States --- */
+#results-section.hide-diagrams .card-visual,
+#results-section.hide-diagrams #diagram-legend {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .card-body {
+        flex-direction: column;
+    }
+}

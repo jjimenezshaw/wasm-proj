@@ -117,22 +117,29 @@ async function load() {
 
     console.log('Downloading resources...', Date());
 
-    const proj = new Proj();
-    await proj.init();
-    const info = proj.proj_info();
-    console.log(info);
-    document.getElementById('proj-version').innerText = info.version;
-    document.getElementById('proj-version').title = info.compilation_date;
+    try {
+        const proj = new Proj();
+        await proj.init();
+        const info = proj.proj_info();
+        console.log('proj_info', info);
+        console.log('database_metadata', proj.database_metadata());
+        document.getElementById('proj-version').innerText = info.version;
+        document.getElementById('proj-version').title = info.compilation_date;
 
-    if (loadFromURLParams()) {
-        run(proj);
+        if (loadFromURLParams()) {
+            run(proj);
+        }
+
+        setupEventListeners(proj);
+
+        console.log('Ready.', Date());
+    } catch (e) {
+        console.error(e);
+        alert(`Problems loading the library. Unexpected behaviour.\n\n${e.message}`);
+    } finally {
+        loader.classList.add('hidden');
+        appContent.classList.remove('loading-state');
     }
-
-    setupEventListeners(proj);
-
-    loader.classList.add('hidden');
-    appContent.classList.remove('loading-state');
-    console.log('Ready.', Date());
 }
 
 window.addEventListener('load', load);
