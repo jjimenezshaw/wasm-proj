@@ -1,25 +1,12 @@
 let currentCopyText = '';
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (typeof setupAdvancedOptions === 'function') {
-        setupAdvancedOptions();
-    }
-
-    // NOTE: This will move to common.js later
-    setupLocalCustomDropdowns(['source-horizontal', 'source-vertical']);
-    setupLocalInfoButtons(['source-horizontal', 'source-vertical']);
-
-    setupEventListeners();
-    loadFromURLParams();
-});
-
-function setupEventListeners() {
+function setupEventListenersOld() {
     // Input types (Search vs Freetext)
     document.querySelectorAll('input[name="source_type"]').forEach((radio) => {
         radio.addEventListener('change', (e) => {
             const isSearch = e.target.value === 'search';
-            document.getElementById('source-search-group').classList.toggle('hidden', !isSearch);
-            document.getElementById('source-freetext-group').classList.toggle('hidden', isSearch);
+            //document.getElementById('source-search-group').classList.toggle('hidden', !isSearch);
+            //document.getElementById('source-freetext-group').classList.toggle('hidden', isSearch);
             updateURLParams();
         });
     });
@@ -45,7 +32,7 @@ function setupEventListeners() {
     });
 
     // Compute and Copy
-    document.getElementById('btn-compute').addEventListener('click', () => {
+    document.getElementById('btn-transform').addEventListener('click', () => {
         updateURLParams();
         processAllCoordinates();
     });
@@ -80,11 +67,11 @@ function setupEventListeners() {
 }
 
 function processAllCoordinates() {
-    const rawInput = document.getElementById('coords-input').value;
-    const lines = rawInput
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0);
+    const sourceCoords = document.getElementById('source-coordinates').value;
+
+    if (!sourceCoords.trim()) return;
+
+    const points = parseInputCoordinates(sourceCoords);
 
     const orderRadio = document.querySelector('input[name="coord_order"]:checked');
     const isEastingNorthing = orderRadio && orderRadio.value === 'en';
@@ -93,10 +80,9 @@ function processAllCoordinates() {
     container.innerHTML = '';
     currentCopyText = '';
 
-    if (lines.length === 0) return;
+    if (points.length === 0) return;
 
-    lines.forEach((line, index) => {
-        const parts = line.split(/\s+/);
+    points.forEach((parts, index) => {
         if (parts.length < 2) return;
 
         let x, y;
@@ -120,12 +106,12 @@ function processAllCoordinates() {
             max_angular_dist: 25.4,
         };
 
-        buildCopyText(line, params);
+        //buildCopyText(line, params);
 
         const card = document.createElement('div');
         card.className = 'result-card';
         card.innerHTML = `
-            <div class="card-title">Point: ${line}</div>
+            <div class="card-title">Point: ${parts}</div>
             <div class="card-body">
                 <div class="card-data">
                     ${generateTableHTML(params)}
@@ -235,7 +221,7 @@ function drawIndicatrix(canvas, params) {
 }
 
 // --- URL Parameter Management ---
-function updateURLParams() {
+function updateURLParamsOld() {
     const params = new URLSearchParams(window.location.search);
 
     const setOrDelete = (key, val) => (val ? params.set(key, val) : params.delete(key));
@@ -256,7 +242,7 @@ function updateURLParams() {
     const order = document.querySelector('input[name="coord_order"]:checked').value;
     params.set('order', order);
 
-    setOrDelete('coords', document.getElementById('coords-input').value);
+    setOrDelete('coords', document.getElementById('source-coordinates').value);
 
     if (document.getElementById('use-network').checked) {
         params.set('net', '1');
@@ -268,7 +254,7 @@ function updateURLParams() {
     window.history.replaceState({}, '', newUrl);
 }
 
-function loadFromURLParams() {
+function loadFromURLParamsOld() {
     const params = new URLSearchParams(window.location.search);
 
     const setIfPresent = (id, paramKey) => {
@@ -312,3 +298,63 @@ function setupLocalCustomDropdowns(inputIds) {
 function setupLocalInfoButtons(inputIds) {
     // Stub for your info modal/alert logic referencing these IDs
 }
+
+function setupEventListenersFactors(proj_worker, proj, crs_list) {
+    document.getElementById('btn-transform').addEventListener('click', () => processAllCoordinates(proj_worker));
+}
+
+/**
+ * "Backdoor" to enable PROJ debug messages (as errors) in the console
+ * @param {number} level
+ * @returns
+ */
+async function _proj_set_log_level(level) {
+    console.log(proj.log_level(level), await g_proj_worker.log_level(level));
+    return true;
+}
+
+let proj;
+let g_proj_worker; // just for debug function proj_set_log_level
+
+async function load() {
+    const appContent = document.getElementById('app-content');
+    const loader = document.getElementById('loading-indicator');
+    loader.classList.remove('hidden');
+
+    console.log('Downloading resources...', Date());
+    let proj_worker;
+    let run;
+    try {
+        proj = new Proj();
+        await proj.init();
+        const info = proj.proj_info();
+        console.log(info);
+        document.getElementById('proj-version').innerText = info.version;
+        document.getElementById('proj-version').title = info.compilation_date;
+        const crs_list = get_crs_list();
+        /////////////////////////
+        const bridge = new WorkerBridge();
+        proj_worker = bridge.create_main_proxy();
+        g_proj_worker = proj_worker;
+        await proj_worker.init();
+
+        setupComboboxes(crs_list, true);
+
+        run = await loadFromURLParams(crs_list);
+        updateAfterLoadUrl(crs_list);
+
+        setupEventListeners(proj_worker, proj, crs_list, true);
+        setupEventListenersFactors(proj_worker, proj, crs_list);
+
+        console.log('Ready.', Date());
+    } catch (e) {
+        console.error(e);
+        alert(`Problems loading the library. Unexpected behaviour.\n\n${e.message}`);
+    } finally {
+        loader.classList.add('hidden');
+        appContent.classList.remove('loading-state');
+    }
+    if (run && proj_worker) processAllCoordinates(proj_worker);
+}
+
+window.addEventListener('load', load);

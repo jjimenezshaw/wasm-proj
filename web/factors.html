@@ -4,47 +4,68 @@
     <meta charset="UTF-8" >
     <meta name="viewport" content="width=device-width, initial-scale=1.0" >
     <title>Wasm PROJ - Distortion Factors</title>
-    <link rel="stylesheet" href="./global.css?v=1.2" >
-    <link rel="stylesheet" href="./factors.css?v=1.1" >
+    <link rel="stylesheet" href="./global.css" >
+    <link rel="stylesheet" href="./factors.css" >
+
+    <script src="./proj/wasm/projModule.js"></script>
+    <script src="./proj/projFunctions.js"></script>
+    <script src="./proj/projBridge.js"></script>
+
+    <script src="./common.js"></script>
+    <script src="./factors.js"></script>
   </head>
   <body>
     <div class="main-wrapper">
+      <div id="loading-indicator" class="hidden">&#8987;</div>
+
       <header class="app-header">
-        <div class="header-title">Wasm PROJ Tools</div>
+        <div class="header-title">Wasm PROJ - factors</div>
         <nav class="header-nav">
           <a href="./transform.html">CRS transform</a>
+          <a href="./transform_pipeline.html">Pipeline transform</a>
           <a href="./projinfo.html">projinfo</a>
-          <a href="./factors.html">Distortion</a>
-          <a href="./index.html">Home</a>
+          <a href="./factors.html">Distortion factors</a>
+          <a href="./">Home</a>
+
           <a
-            href="https://github.com/your-username/your-repo"
+            href="https://github.com/jjimenezshaw/wasm-proj"
             target="_blank"
             class="github-link"
             title="View source on GitHub"></a>
         </nav>
       </header>
 
-      <div id="app-content">
-        <div class="page-intro">
-          <h1 class="intro-title">Distortion Factors</h1>
-          <p class="intro-text">
-            Compute and visualize Tissot's indicatrix parameters to analyze map projection distortions. Input your
-            coordinate pairs below to generate scaling and convergence metrics.
+      <div id="app-content" class="loading-state">
+        <div class="full-width-section">
+          <h2>Distortion Factors</h2>
+          <p class="description-text">
+            Compute and visualize Tissot's indicatrix parameters and distortion factors to analyze map projection
+            distortions. Input your coordinates below to generate scaling and convergence metrics. Implemented with
+            <a href="https://proj.org" target="_blank">PROJ</a>
+            <span id="proj-version"></span>
           </p>
-        </div>
 
-        <div class="checkbox-group">
-          <label><input type="checkbox" id="use-network" > Use network</label>
-
-          <button type="button" id="btn-advanced" class="btn-small btn-toggle">
-            Advanced Options <span class="toggle-icon">▼</span>
-          </button>
+          <div class="checkbox-group">
+            <label
+              class="checkbox-label"
+              title="Enables querying available high-accuracy transformation grids over the network. It can be slower.">
+              <input type="checkbox" id="use-network" checked >
+              Use network
+            </label>
+            <label class="checkbox-label" title="Show in the list of CRS the deprecated ones">
+              <input type="checkbox" id="show-deprecated" >
+              Show deprecated
+            </label>
+            <button type="button" id="btn-advanced" class="btn-small btn-toggle">
+              Advanced Options <span class="toggle-icon">▼</span>
+            </button>
+          </div>
         </div>
 
         <div id="advanced-options-panel" class="advanced-panel hidden">
           <div class="field-inline">
             <div class="file-group">
-              <label>Main Database</label>
+              <label>Change Main Database</label>
               <div class="file-input-wrapper">
                 <button type="button" class="btn-small" data-load="db-file">Select File</button>
                 <input type="file" id="db-file" class="hidden-file-input" accept=".db,.sqlite" >
@@ -56,7 +77,7 @@
             </div>
 
             <div class="file-group">
-              <label>Auxiliary Databases</label>
+              <label>Set Auxiliary Databases</label>
               <div class="file-input-wrapper">
                 <button type="button" class="btn-small" data-load="aux-files">Select Files</button>
                 <input type="file" id="aux-files" class="hidden-file-input" multiple accept=".db,.sqlite" >
@@ -71,65 +92,99 @@
 
         <div class="container">
           <div class="column">
-            <h2>CRS Definition</h2>
+            <h2>Projected CRS</h2>
 
-            <div class="field-inline">
-              <label><input type="radio" name="source_type" value="search" checked > Search</label>
-              <label><input type="radio" name="source_type" value="freetext" > Free text</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="source_type" value="combo" checked >
+                Select from Catalog
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="source_type" value="freetext" >
+                Free Text
+              </label>
             </div>
 
-            <div id="source-search-group">
-              <div id="source-horizontal-group" class="field">
-                <label for="source-horizontal-input">Horizontal CRS</label>
-                <div class="dropdown-wrapper" id="source-horizontal-container">
-                  <div class="input-with-clear">
+            <div id="source-combo-group">
+              <div class="field">
+                <label>Horizontal CRS <span class="required">*</span></label>
+                <div class="input-with-link">
+                  <div class="combo-container" id="source-horizontal-container">
+                    <button type="button" class="clear-btn" data-clear="source-horizontal-input" title="Clear field">
+                      &times;
+                    </button>
                     <input
                       type="text"
                       id="source-horizontal-input"
-                      class="dropdown-input"
-                      placeholder="e.g. EPSG:4326"
-                      autocomplete="off" >
-                    <button type="button" class="btn-clear hidden" data-clear="source-horizontal-input" title="Clear">
-                      &times;
-                    </button>
-                    <button type="button" class="btn-info" data-info="source-horizontal-input" title="View Details">
-                      i
-                    </button>
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
+                    <div class="combo-dropdown">
+                      <select id="source-horizontal-select" class="combo-select" size="6"></select>
+                    </div>
                   </div>
-                  <ul class="dropdown-menu hidden" id="source-horizontal-menu"></ul>
+                  <a
+                    href="#"
+                    id="source-horizontal-link"
+                    class="info-link disabled"
+                    target="_blank"
+                    title="Select a CRS to view details"
+                    >ℹ️</a
+                  >
                 </div>
               </div>
-
-              <div id="source-vertical-group" class="field">
-                <label for="source-vertical-input">Vertical CRS (Optional)</label>
-                <div class="dropdown-wrapper" id="source-vertical-container">
-                  <div class="input-with-clear">
+              <div class="field">
+                <label>Vertical CRS</label>
+                <div class="input-with-link">
+                  <div class="combo-container" id="source-vertical-container">
+                    <button type="button" class="clear-btn" data-clear="source-vertical-input" title="Clear field">
+                      &times;
+                    </button>
                     <input
                       type="text"
                       id="source-vertical-input"
-                      class="dropdown-input"
-                      placeholder="e.g. EPSG:5773"
-                      autocomplete="off" >
-                    <button type="button" class="btn-clear hidden" data-clear="source-vertical-input" title="Clear">
-                      &times;
-                    </button>
-                    <button type="button" class="btn-info" data-info="source-vertical-input" title="View Details">
-                      i
-                    </button>
+                      placeholder="Type to search..."
+                      autocomplete="off"
+                      spellcheck="false" >
+                    <div class="combo-dropdown">
+                      <select id="source-vertical-select" class="combo-select" size="6"></select>
+                    </div>
                   </div>
-                  <ul class="dropdown-menu hidden" id="source-vertical-menu"></ul>
+                  <a
+                    href="#"
+                    id="source-vertical-link"
+                    class="info-link disabled"
+                    target="_blank"
+                    title="Select a CRS to view details"
+                    >ℹ️</a
+                  >
                 </div>
               </div>
             </div>
 
-            <div id="source-freetext-group" class="field hidden">
-              <label for="source-freetext">PROJ string or WKT</label>
-              <div class="input-with-clear">
-                <textarea id="source-freetext" rows="4" placeholder="+proj=..."></textarea>
-                <button type="button" class="btn-clear hidden" data-clear="source-freetext" title="Clear">
-                  &times;
-                </button>
+            <div id="source-text-group" class="hidden">
+              <div class="field">
+                <div class="flex-header">
+                  <label for="source-freetext">Custom CRS Definition <span class="required">*</span></label>
+                  <button type="button" class="btn-small" data-load="source-file">Load File</button>
+                  <input type="file" id="source-file" class="hidden" >
+                </div>
+                <div class="textarea-container">
+                  <button type="button" class="clear-btn" data-clear="source-freetext" title="Clear field">
+                    &times;
+                  </button>
+                  <textarea
+                    id="source-freetext"
+                    class="freetext-text"
+                    spellcheck="false"
+                    placeholder="Enter custom CRS definition..."></textarea>
+                </div>
               </div>
+            </div>
+
+            <div class="field">
+              <label>Source Metadata</label>
+              <textarea id="source-metadata" readonly placeholder="Metadata will auto-generate..."></textarea>
             </div>
           </div>
 
@@ -137,26 +192,42 @@
             <h2>Input Coordinates</h2>
 
             <div class="field-inline axis-order-group">
-              <span class="axis-order-label">Axis Order:</span>
-              <label><input type="radio" name="coord_order" value="en" checked > Easting/Northing</label>
+              <label><input type="radio" name="coord_order" value="ll" checked > Lat/Lon</label>
+              <label><input type="radio" name="coord_order" value="en" > Easting/Northing</label>
               <label><input type="radio" name="coord_order" value="ne" > Northing/Easting</label>
             </div>
 
             <div class="field">
-              <div
-                style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.25rem;">
-                <label for="coords-input" style="margin-bottom: 0;">Coordinates (one pair per line)</label>
-                <button type="button" class="btn-small" data-load="coords-file">Select File</button>
-                <input type="file" id="coords-file" class="hidden-file-input" accept=".txt,.csv" >
+              <div class="flex-header">
+                <label>Input Coordinates <span class="required">*</span></label>
+                <button type="button" class="btn-small" data-load="coords-file">Load File</button>
+                <input type="file" id="coords-file" class="hidden" >
               </div>
-              <div class="input-with-clear">
-                <textarea id="coords-input" rows="6" placeholder="12.0 45.0&#10;13.5 46.2"></textarea>
-                <button type="button" class="btn-clear hidden" data-clear="coords-input" title="Clear">&times;</button>
+              <div class="textarea-container">
+                <button type="button" class="clear-btn" data-clear="source-coordinates" title="Clear field">
+                  &times;
+                </button>
+                <textarea
+                  id="source-coordinates"
+                  class="mono-space min-h-80"
+                  placeholder="Enter coordinates here (e.g., X Y Z)..."></textarea>
+              </div>
+              <div class="center-btn-container">
+                <button
+                  type="button"
+                  type="button"
+                  class="btn-small"
+                  id="points-in-map"
+                  title="Opens a new tab. Look at the console if it doesn't work.">
+                  Show points in a map
+                </button>
               </div>
             </div>
 
             <div class="compute-container">
-              <button type="button" id="btn-compute" class="btn-transform compute-btn">Compute Factors</button>
+              <button type="button" id="btn-transform" class="btn-transform compute-btn" disabled>
+                Compute Factors
+              </button>
             </div>
           </div>
         </div>
@@ -188,8 +259,5 @@
         <p>&copy; 2026 Wasm PROJ Contributors. Licensed under the MIT License.</p>
       </footer>
     </div>
-
-    <script src="./common.js"></script>
-    <script src="./factors.js"></script>
   </body>
 </html>
