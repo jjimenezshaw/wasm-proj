@@ -180,36 +180,6 @@ function struct_ptr_to_dict(proj, struct_ptr, params) {
     return res;
 }
 
-// function _transform_internal(keep, proj, points, inverse, P_transformer, always_full_output) {
-//     const number_of_points = points.length;
-//     const coord_ptr = keep.malloc(32 * number_of_points); // 4 doubles.
-//     const coordView = new Float64Array(proj.HEAPF64.buffer, coord_ptr, 4 * number_of_points);
-//     for (let p = 0; p < number_of_points; p++) {
-//         coordView[p * 4 + 0] = points[p][0];
-//         coordView[p * 4 + 1] = points[p][1];
-//         coordView[p * 4 + 2] = points[p].length > 2 ? points[p][2] : 0;
-//         coordView[p * 4 + 3] = points[p].length > 3 ? points[p][3] : Infinity; // HUGE_VAL
-//     }
-
-//     const r = proj._proj_trans_array(P_transformer, inverse ? -1 : 1, number_of_points, coord_ptr);
-//     if (r !== 0) {
-//         const msg_ptr = proj._proj_context_errno_string(this.ctx, r);
-//         const msg = proj.UTF8ToString(msg_ptr);
-//         throw new Error(`_proj_trans_array error ${msg}`);
-//     }
-
-//     const res = [];
-//     for (let p = 0; p < number_of_points; p++) {
-//         const coord = [];
-//         coord.push(coordView[p * 4 + 0]);
-//         coord.push(coordView[p * 4 + 1]);
-//         if (always_full_output || points[p].length > 2) coord.push(coordView[p * 4 + 2]);
-//         if (always_full_output || points[p].length > 3) coord.push(coordView[p * 4 + 3]);
-//         res.push(coord);
-//     }
-//     return res;
-// }
-
 /** Class represeting a coordinate Transformer. Do not forget to call dispose() after usage.
  * It must be created with the methods in class Proj.
  */
@@ -385,6 +355,7 @@ class Proj {
     static PJ_TYPE_VERTICAL_CRS = 14;
     static PJ_TYPE_PROJECTED_CRS = 15;
     static PJ_TYPE_COMPOUND_CRS = 16;
+    static PJ_TYPE_OTHER_COORDINATE_OPERATION = 24;
     static PJ_TYPE_DERIVED_PROJECTED_CRS = 28;
 
     /** Created the Proj object */
@@ -1088,9 +1059,6 @@ class Proj {
                 for (const key of ['angular_distortion', 'meridian_parallel_angle', 'meridian_convergence']) {
                     elem[key] = this.proj._proj_todeg(elem[key]);
                 }
-                elem.latitude = lat;
-                elem.longitude = lon;
-                elem.ellipsoidal_height_m = alt;
                 const gaussian_r = semi_mayor_m
                     ? (semi_mayor_m * Math.sqrt(1 - e2)) / (1 - e2 * Math.sin(lat_rad) ** 2)
                     : NaN;
@@ -1098,6 +1066,9 @@ class Proj {
                 if (Math.abs(elem.meridional_scale - elem.parallel_scale) < 1e-5) {
                     elem.combined_factor = elem.meridional_scale * elem.elevation_factor;
                 }
+                elem.latitude = lat;
+                elem.longitude = lon;
+                elem.ellipsoidal_height_m = alt;
                 elem.error_code = error_code;
                 if (error_code) {
                     const msgPtr = this.proj._proj_context_errno_string(this.ctx, error_code);

@@ -5,62 +5,115 @@ async function processAllCoordinates(proj_worker) {
 
     if (!sourceCoords.trim()) return;
 
-    const points = parseInputCoordinates(sourceCoords);
-
-    const orderRadio = document.querySelector('input[name="coord_order"]:checked');
-    const isEastingNorthing = orderRadio && orderRadio.value === 'en';
-
     const container = document.getElementById('cards-container');
     container.innerHTML = '';
     lastFactors = null;
+    document.getElementById('computing').innerText = ' ... Computing ...';
+    document.getElementById('computing').classList.remove('required');
+    document.getElementById('computing').classList.remove('hidden');
+    try {
+        let points = parseInputCoordinates(sourceCoords);
+        if (points.length === 0) return;
+        points = points.map((e) => (e.length === 2 ? [...e, 0] : e));
 
-    if (points.length === 0) return;
-
-    const useNetwork = document.getElementById('use-network').checked;
-    const s = getCrsFromInput('source');
-    const geographic = await proj_worker.crs_get_geographic({ crs: s });
-    const transformer = await proj_worker.create_transformer_from_crs({
-        source_crs: geographic,
-        target_crs: s,
-        promote_to_3D: true,
-        use_network: useNetwork,
-        always_xy: true,
-    });
-    const transformed = transformer.transform({ points });
-    console.log(transformed);
-    transformer.dispose();
-    const facts = await proj_worker.factors({ crs: s, points: points });
-    lastFactors = facts;
-
-    facts.forEach((fact, index) => {
-        const card = document.createElement('div');
-        card.className = 'result-card';
-
-        card.innerHTML = `<div class="card-title">Point ${index + 1}</div>`;
-        if (fact.error_code !== 0) {
-            card.innerHTML += `<div>Error ${fact.error_code}: ${fact.error_msg}</div>`;
-        } else {
-            delete fact.error_code;
-            card.innerHTML += `
-            <div class="card-body">
-                <div class="card-data">
-                    ${generateTableHTML(fact)}
-                </div>
-                <div class="card-visual">
-                    <canvas width="250" height="250"></canvas>
-                </div>
-            </div>`;
-            const canvas = card.querySelector('canvas');
-            drawIndicatrix(canvas, fact);
+        function swap(v) {
+            const [a, b, ...rest] = v;
+            return [b, a, ...rest];
         }
-        container.appendChild(card);
-    });
 
-    document.getElementById('results-section').classList.remove('hidden');
+        const orderRadio = document.querySelector('input[name="coord_order"]:checked');
+        const isEastingNorthing = orderRadio && orderRadio.value === 'en';
+        const isNorthingEasting = orderRadio && orderRadio.value === 'ne';
+        let pointsLatLon, pointsEN;
+        if (isNorthingEasting) {
+            pointsEN = points.map(swap);
+        } else if (isEastingNorthing) {
+            pointsEN = points;
+        } else {
+            pointsLatLon = points;
+        }
+
+        const useNetwork = document.getElementById('use-network').checked;
+        let s = getCrsFromInput('source');
+        const metadata = await proj_worker.crs_metadata({ crs: s });
+        if (!metadata.is_crs && metadata.type === Proj.PJ_TYPE_OTHER_COORDINATE_OPERATION) {
+            s += ' +type=crs'; // let's try if it is an old operation.
+        }
+        const geographic = await proj_worker.crs_get_geographic({ crs: s });
+        let transformer;
+        try {
+            transformer = await proj_worker.create_transformer_from_crs({
+                source_crs: geographic,
+                target_crs: s,
+                promote_to_3D: true,
+                use_network: useNetwork,
+                always_xy: true,
+            });
+            if (pointsEN) {
+                pointsLatLon = await transformer.transform({ points: pointsEN, inverse: true }).map(swap);
+            } else {
+                pointsEN = await transformer.transform({ points: pointsLatLon.map(swap), inverse: false });
+            }
+        } finally {
+            transformer?.dispose();
+        }
+        const facts = await proj_worker.factors({ crs: s, points: pointsLatLon });
+
+        const labeled = pointsEN.map((e) => ({ easting: e[0], northing: e[1], elevation: e[2] }));
+
+        const factsCompleted = facts.map((entry, i) => ({ ...entry, ...labeled[i] }));
+        lastFactors = factsCompleted;
+        let easting_u, northing_u, elevation_u;
+        function unit_abbr(unit) {
+            switch (unit.toLowerCase()) {
+                case 'metre':
+                case 'meter':
+                    return 'm';
+                case 'foot':
+                    return 'ft';
+                case 'us survey foot':
+                    return 'ftUS';
+            }
+            return unit;
+        }
+        try {
+            const axes = await proj_worker.crs_axes({ crs: s });
+            [easting_u, northing_u, elevation_u = ''] = axes.map((e) => unit_abbr(e.unit));
+        } catch (_) {}
+
+        factsCompleted.forEach((fact, index) => {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+
+            card.innerHTML = `<div class="card-title">Point ${index + 1}</div>`;
+            if (fact.error_code !== 0) {
+                card.innerHTML += `<div>Error ${fact.error_code}: ${fact.error_msg}</div>`;
+            } else {
+                delete fact.error_code;
+                card.innerHTML += `
+                <div class="card-body">
+                    <div class="card-data">
+                        ${generateTableHTML(fact, easting_u, northing_u, elevation_u)}
+                    </div>
+                    <div class="card-visual">
+                        <canvas width="250" height="250"></canvas>
+                    </div>
+                </div>`;
+                const canvas = card.querySelector('canvas');
+                drawIndicatrix(canvas, fact);
+            }
+            container.appendChild(card);
+        });
+        document.getElementById('computing').classList.add('hidden');
+        document.getElementById('results-section').classList.remove('hidden');
+    } catch (e) {
+        document.getElementById('computing').classList.add('required');
+        document.getElementById('computing').innerText = e;
+    }
 }
 
 // Generates a clean HTML table instead of divs
-function generateTableHTML(params) {
+function generateTableHTML(params, easting_u, northing_u, elevation_u) {
     const labels = {
         meridional_scale: 'Meridional Scale (h)',
         parallel_scale: 'Parallel Scale (k)',
@@ -74,27 +127,62 @@ function generateTableHTML(params) {
         dx_dphi: '∂x/∂φ',
         dy_dlam: '∂y/∂λ',
         dy_dphi: '∂y/∂φ',
+        elevation_factor: 'Elevation Scale Factor',
+        combined_factor: 'Combined Scale Factor',
         latitude: 'Latitude [°]',
         longitude: 'Longitude [°]',
         ellipsoidal_height_m: 'Ellipsoidal height [m]',
-        elevation_factor: 'Elevation Scale Factor',
-        combined_factor: 'Combined Scale Factor',
+        easting: `Easting${easting_u ? ` [${easting_u}]` : ''}`,
+        northing: `Northing${northing_u ? ` [${northing_u}]` : ''}`,
+        elevation: `Elevation${elevation_u ? ` [${elevation_u}]` : ''}`,
     };
 
-    let rows = '';
-    for (const [key, value] of Object.entries(params)) {
-        rows += `
-            <tr>
-                <th>${labels[key] || key}</th>
-                <td>${value.toFixed(6)}</td>
-            </tr>`;
+    const entries = Object.entries(params);
+    const leftHalf = entries.slice(0, 12);
+    const rightHalf = entries.slice(12);
+
+    function decimals(key) {
+        switch (key) {
+            case 'easting':
+            case 'northing':
+            case 'elevation':
+            case 'ellipsoidal_height_m':
+                return 2;
+            case 'latitude':
+            case 'longitude':
+                return 6;
+        }
+        return 6;
     }
 
-    return `<table class="params-table"><tbody>${rows}</tbody></table>`;
+    const buildRows = (dataGroup) => {
+        return dataGroup
+            .map(
+                ([key, value]) => `
+            <tr>
+                <th>${labels[key] || key}</th>
+                <td>${value.toFixed(decimals(key))}</td>
+            </tr>
+        `,
+            )
+            .join('');
+    };
+
+    // Return the two tables wrapped in our new responsive flex container
+    return `
+        <div class="params-flex-container">
+            <div class="table-col">
+                <table class="params-table"><tbody>${buildRows(leftHalf)}</tbody></table>
+            </div>
+            <div class="table-col">
+                <table class="params-table"><tbody>${buildRows(rightHalf)}</tbody></table>
+            </div>
+        </div>
+    `;
 }
 
 function drawIndicatrix(canvas, params) {
-    const cos_phi = Math.cos((params.lat * Math.PI) / 180);
+    const cos_phi = Math.cos((params.latitude * Math.PI) / 180);
     const m11 = params.dx_dphi ** 2 + params.dx_dlam ** 2 / cos_phi ** 2;
     const m12 = params.dx_dphi * params.dy_dphi + (params.dx_dlam * params.dy_dlam) / cos_phi ** 2;
     const m22 = params.dy_dphi ** 2 + params.dy_dlam ** 2 / cos_phi ** 2;
@@ -207,9 +295,7 @@ function setupEventListenersFactors(proj_worker, proj, crs_list) {
             setTimeout(() => (btn.textContent = originalText), 2000);
         });
     });
-    document
-        .getElementById('btn-transform')
-        .addEventListener('click', async () => processAllCoordinates(proj /*_worker*/));
+    document.getElementById('btn-transform').addEventListener('click', async () => processAllCoordinates(proj_worker));
 }
 
 /**
