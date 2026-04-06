@@ -180,6 +180,36 @@ function struct_ptr_to_dict(proj, struct_ptr, params) {
     return res;
 }
 
+// function _transform_internal(keep, proj, points, inverse, P_transformer, always_full_output) {
+//     const number_of_points = points.length;
+//     const coord_ptr = keep.malloc(32 * number_of_points); // 4 doubles.
+//     const coordView = new Float64Array(proj.HEAPF64.buffer, coord_ptr, 4 * number_of_points);
+//     for (let p = 0; p < number_of_points; p++) {
+//         coordView[p * 4 + 0] = points[p][0];
+//         coordView[p * 4 + 1] = points[p][1];
+//         coordView[p * 4 + 2] = points[p].length > 2 ? points[p][2] : 0;
+//         coordView[p * 4 + 3] = points[p].length > 3 ? points[p][3] : Infinity; // HUGE_VAL
+//     }
+
+//     const r = proj._proj_trans_array(P_transformer, inverse ? -1 : 1, number_of_points, coord_ptr);
+//     if (r !== 0) {
+//         const msg_ptr = proj._proj_context_errno_string(this.ctx, r);
+//         const msg = proj.UTF8ToString(msg_ptr);
+//         throw new Error(`_proj_trans_array error ${msg}`);
+//     }
+
+//     const res = [];
+//     for (let p = 0; p < number_of_points; p++) {
+//         const coord = [];
+//         coord.push(coordView[p * 4 + 0]);
+//         coord.push(coordView[p * 4 + 1]);
+//         if (always_full_output || points[p].length > 2) coord.push(coordView[p * 4 + 2]);
+//         if (always_full_output || points[p].length > 3) coord.push(coordView[p * 4 + 3]);
+//         res.push(coord);
+//     }
+//     return res;
+// }
+
 /** Class represeting a coordinate Transformer. Do not forget to call dispose() after usage.
  * It must be created with the methods in class Proj.
  */
@@ -344,6 +374,18 @@ class Transformer {
 /** Class for the general PROJ wasm wrapper. Do not forget to call init() */
 class Proj {
     static current_script_url = typeof document !== 'undefined' ? document.currentScript.src : ''; // just for browser
+
+    static PJ_TYPE_UNKNOWN = 0;
+    static PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME = 4;
+    static PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME = 6;
+
+    static PJ_TYPE_GEOCENTRIC_CRS = 10;
+    static PJ_TYPE_GEOGRAPHIC_2D_CRS = 12;
+    static PJ_TYPE_GEOGRAPHIC_3D_CRS = 13;
+    static PJ_TYPE_VERTICAL_CRS = 14;
+    static PJ_TYPE_PROJECTED_CRS = 15;
+    static PJ_TYPE_COMPOUND_CRS = 16;
+    static PJ_TYPE_DERIVED_PROJECTED_CRS = 28;
 
     /** Created the Proj object */
     constructor() {
@@ -589,7 +631,6 @@ class Proj {
         }
         const ptr_size = this.ptr_size;
         const double_size = 8; // Doubles are 8 bytes
-        const PJ_TYPE_COMPOUND_CRS = 16; // from proj.h
         const keep = new Keeper(this.proj);
         let res = {};
         try {
@@ -632,7 +673,7 @@ class Proj {
             };
             const sourceCRS = keep.string(args.crs);
             const P_crs = keep.call('_proj_create', this.ctx, sourceCRS);
-            if (this.proj._proj_get_type(P_crs) === PJ_TYPE_COMPOUND_CRS) {
+            if (this.proj._proj_get_type(P_crs) === Proj.PJ_TYPE_COMPOUND_CRS) {
                 const P_crs_0 = keep.call('_proj_crs_get_sub_crs', this.ctx, P_crs, 0);
                 const P_crs_1 = keep.call('_proj_crs_get_sub_crs', this.ctx, P_crs, 1);
                 res = internal_axes(P_crs_0);
@@ -820,19 +861,16 @@ class Proj {
         }
         const keep = new Keeper(this.proj);
         const res = {};
-        const PJ_TYPE_UNKNOWN = 0;
-        const PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME = 4;
-        const PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME = 6;
         try {
             const crs = keep.string(args?.crs);
             const P_crs = keep.call('_proj_create', this.ctx, crs);
             const is_crs = !!this.proj._proj_is_crs(P_crs);
             const P_datum = is_crs ? keep.call('_proj_crs_get_datum_forced', this.ctx, P_crs) : 0;
-            res.type = P_datum === 0 ? PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum);
+            res.type = P_datum === 0 ? Proj.PJ_TYPE_UNKNOWN : this.proj._proj_get_type(P_datum);
             res.name = P_datum === 0 ? '' : this.proj.UTF8ToString(this.proj._proj_get_name(P_datum));
             res.is_dynamic =
-                res.type === PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
-                res.type === PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
+                res.type === Proj.PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME ||
+                res.type === Proj.PJ_TYPE_DYNAMIC_VERTICAL_REFERENCE_FRAME;
             return res;
         } finally {
             keep.clean();
@@ -893,6 +931,57 @@ class Proj {
     }
 
     /**
+     * Gets the geographic CRS underlying a projected, compound, etc
+     * @param {Object} args
+     * @param {string} args.crs - definition of the CRS
+     * some old PROJ4 expressions need a "+type=crs" to make it clear its nature.
+     * @returns {string} - geographic CRS.
+     */
+    crs_get_geographic(args) {
+        if (!args?.crs?.length) {
+            throw Error(`args.crs is mandatory.`);
+        }
+        if (typeof args.crs !== 'string') {
+            throw Error(`args.crs must be a string.`);
+        }
+        const keep = new Keeper(this.proj);
+        try {
+            const crs = keep.string(args.crs);
+            let P_ref = keep.call('_proj_create', this.ctx, crs);
+            if (P_ref === 0) {
+                throw Error(`cannot create valid object from this: ${args.crs}`);
+            }
+
+            let type = this.proj._proj_get_type(P_ref);
+            if (type === Proj.PJ_TYPE_GEOCENTRIC_CRS) {
+                throw Error(`cannot get geographic from geocentric CRS`);
+            } else if (type === Proj.PJ_TYPE_VERTICAL_CRS) {
+                throw Error(`cannot get geographic from vertical CRS`);
+            } else if (type === Proj.PJ_TYPE_COMPOUND_CRS) {
+                P_ref = keep.call('_proj_crs_get_sub_crs', this.ctx, P_ref, 0);
+                type = this.proj._proj_get_type(P_ref);
+            }
+
+            if (type === Proj.PJ_TYPE_GEOGRAPHIC_2D_CRS || type === Proj.PJ_TYPE_GEOGRAPHIC_3D_CRS) {
+                // nothing to do
+            } else if (type === Proj.PJ_TYPE_PROJECTED_CRS) {
+                P_ref = keep.call('_proj_get_source_crs', this.ctx, P_ref);
+            } else if (type === Proj.PJ_TYPE_DERIVED_PROJECTED_CRS) {
+                P_ref = keep.call('_proj_get_source_crs', this.ctx, P_ref);
+                P_ref = keep.call('_proj_get_source_crs', this.ctx, P_ref);
+            } else {
+                throw Error(`Unsupported type ${type} to extract the geographic system`);
+            }
+            const PJ_WKT2_2019 = 2;
+            const wkt2 = this.proj._proj_as_wkt(this.ctx, P_ref, PJ_WKT2_2019, 0);
+            const out = this.proj.UTF8ToString(wkt2);
+            return out;
+        } finally {
+            keep.clean();
+        }
+    }
+
+    /**
      * @typedef {Object} factors_result
      * @property {number} meridional_scale -
      * @property {number} parallel_scale
@@ -906,8 +995,9 @@ class Proj {
      * @property {number} dx_dphi
      * @property {number} dy_dlam
      * @property {number} dy_dphi
-     * @property {number} lat - degrees
-     * @property {number} lon - degrees
+     * @property {number} latitude - degrees
+     * @property {number} longitude - degrees
+     * @property {number} ellipsoidal_height_m - metres
      * @property {number} error_code - error generated by PROJ. 0 on success.
      * @property {string} [error_msg] - error message when error_code is not 0.
      */
@@ -936,6 +1026,26 @@ class Proj {
                 throw Error(`cannot create valid object from this: ${args.crs}`);
             }
 
+            const P_ellipsoid = keep.call('_proj_get_ellipsoid', this.ctx, P_crs);
+            let semi_mayor_m = 0;
+            let e2 = 0;
+            if (P_ellipsoid) {
+                const double_size = 8;
+                const out_semi_mayor_m_ptr = keep.malloc(double_size);
+                const out_semi_minor_m_ptr = keep.malloc(double_size);
+                this.proj._proj_ellipsoid_get_parameters(
+                    this.ctx,
+                    P_ellipsoid,
+                    out_semi_mayor_m_ptr,
+                    out_semi_minor_m_ptr,
+                    0,
+                    0,
+                );
+                semi_mayor_m = this.proj.getValue(out_semi_mayor_m_ptr, 'double');
+                const semi_minor_m = this.proj.getValue(out_semi_minor_m_ptr, 'double');
+                e2 = 1 - semi_minor_m ** 2 / semi_mayor_m ** 2;
+            }
+
             const coord_ptr = keep.malloc(32);
             this.proj.setValue(coord_ptr + 8 * 2, 0, 'double'); // z
             this.proj.setValue(coord_ptr + 8 * 3, 0, 'double'); // t
@@ -962,12 +1072,14 @@ class Proj {
                 }
                 const lat = point.lat ?? point[0];
                 const lon = point.lon ?? point[1];
+                const alt = point.alt ?? (point.length >= 3 ? point[2] : 0);
                 const lat_rad = this.proj._proj_torad(lat);
                 const lon_rad = this.proj._proj_torad(lon);
 
                 this.proj.setValue(coord_ptr + 8 * 0, lon_rad, 'double');
                 this.proj.setValue(coord_ptr + 8 * 1, lat_rad, 'double');
 
+                this.proj._proj_errno_reset(P_crs);
                 this.proj._proj_factors(factors_ptr, P_crs, coord_ptr);
                 const error_code = this.proj._proj_errno(P_crs);
                 if (error_code) this.proj._proj_errno_reset(P_crs);
@@ -976,8 +1088,16 @@ class Proj {
                 for (const key of ['angular_distortion', 'meridian_parallel_angle', 'meridian_convergence']) {
                     elem[key] = this.proj._proj_todeg(elem[key]);
                 }
-                elem.lat = lat;
-                elem.lon = lon;
+                elem.latitude = lat;
+                elem.longitude = lon;
+                elem.ellipsoidal_height_m = alt;
+                const gaussian_r = semi_mayor_m
+                    ? (semi_mayor_m * Math.sqrt(1 - e2)) / (1 - e2 * Math.sin(lat_rad) ** 2)
+                    : NaN;
+                elem.elevation_factor = gaussian_r / (gaussian_r + alt);
+                if (Math.abs(elem.meridional_scale - elem.parallel_scale) < 1e-5) {
+                    elem.combined_factor = elem.meridional_scale * elem.elevation_factor;
+                }
                 elem.error_code = error_code;
                 if (error_code) {
                     const msgPtr = this.proj._proj_context_errno_string(this.ctx, error_code);

@@ -104,7 +104,10 @@
 .swatch-circle {
     border: 2px solid #3b82f6;
 }
-.swatch-merpar {
+.swatch-mer {
+    border: 2px solid darkred;
+}
+.swatch-par {
     border: 2px solid #1f2937;
 }
 
@@ -156,7 +159,7 @@
 
 .params-table th,
 .params-table td {
-    padding: 0.5rem;
+    padding: 0.1rem;
     border-bottom: 1px solid var(--border-light);
 }
 

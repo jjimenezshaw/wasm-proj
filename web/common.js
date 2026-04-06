@@ -450,6 +450,12 @@ function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizon
     // 6. Main Action Buttons
     document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
 
+    // Diagram Toggle
+    document.getElementById('toggle-diagrams')?.addEventListener('change', (e) => {
+        const resultsSection = document.getElementById('results-section');
+        resultsSection.classList.toggle('hide-diagrams', !e.target.checked);
+    });
+
     setupAdvancedOptions(proj, proj_worker, () => {
         updateComboboxes(get_crs_list(), only_projected_horizontal);
     });
