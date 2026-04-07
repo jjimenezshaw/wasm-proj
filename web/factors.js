@@ -352,4 +352,52 @@ async function load() {
     if (run && proj_worker) processAllCoordinates(proj_worker);
 }
 
+async function showPointsInMap(proj) {
+    const coords = document.getElementById('source-coordinates').value;
+    if (!coords.trim()) {
+        console.log('No points to show in the map.');
+        return;
+    }
+
+    let points = parseInputCoordinates(coords).map((e) => e.slice(0, 2));
+
+    let s = getCrsFromInput('source');
+    if (s.length === 0) throw new Error('Select a valid source CRS');
+    const metadata = await proj.crs_metadata({ crs: s });
+    if (!metadata.is_crs && metadata.type === Proj.PJ_TYPE_OTHER_COORDINATE_OPERATION) {
+        s += ' +type=crs'; // let's try if it is an old operation.
+    }
+
+    const orderRadio = document.querySelector('input[name="coord_order"]:checked');
+    const isLatLon = orderRadio.value === 'll';
+    const isEN = orderRadio.value === 'en';
+    let referenceCrs;
+    if (isLatLon) {
+        referenceCrs = await proj.crs_get_geographic({ crs: s });
+    } else referenceCrs = s;
+    if (!isEN) {
+        points = points.map((e) => [e[1], e[0]]);
+    }
+
+    let transformer;
+    try {
+        const t = 'EPSG:4326';
+        transformer = await proj.create_transformer_from_crs({
+            source_crs: referenceCrs,
+            target_crs: t,
+            promote_to_3D: false,
+            always_xy: true,
+        });
+        const transformed = (await transformer.transform({ points: points })).map((e) => [e[1], e[0]]);
+        const res = transformed.map((point) => point.map((e) => e.toFixed(6)).join(',')).join(';');
+        const mapUrl = `./pointsinmap.html?points=${res}`;
+        window.open(mapUrl, '_blank');
+    } catch (e) {
+        console.error(`Error showing in a map: ${e}`);
+        return;
+    } finally {
+        if (transformer) transformer.dispose();
+    }
+}
+
 window.addEventListener('load', load);
