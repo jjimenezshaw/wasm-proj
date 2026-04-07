@@ -50,7 +50,7 @@ async function processAllCoordinates(proj_worker) {
                 always_xy: true,
             });
             if (pointsEN) {
-                pointsLatLon = await transformer.transform({ points: pointsEN, inverse: true }).map(swap);
+                pointsLatLon = (await transformer.transform({ points: pointsEN, inverse: true })).map(swap);
             } else {
                 pointsEN = await transformer.transform({ points: pointsLatLon.map(swap), inverse: false });
             }

@@ -413,6 +413,9 @@ function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizon
     document.querySelectorAll('input[name="target_type"]')?.forEach((radio) => {
         radio.addEventListener('change', () => toggleInputs('target'));
     });
+    document.querySelectorAll('input[name="coord_order"]')?.forEach((radio) => {
+        radio.addEventListener('change', () => validateForm());
+    });
 
     // 3. Freetext areas (Need metadata update + validation)
     ['source', 'target'].forEach((prefix) => {
@@ -605,6 +608,7 @@ function updateURLParams() {
 
     set('st', document.querySelector('input[name="source_type"]:checked')?.value);
     set('tt', document.querySelector('input[name="target_type"]:checked')?.value);
+    set('co', document.querySelector('input[name="coord_order"]:checked')?.value);
 
     set('sh', getCrsId(document.getElementById('source-horizontal-input')?.value));
     set('sv', getCrsId(document.getElementById('source-vertical-input')?.value));
@@ -687,6 +691,8 @@ async function loadFromURLParams(crs_list, searchParams = undefined) {
         document.querySelector(`input[name="source_type"][value="${params.get('st')}"]`).checked = true;
     if (params.has('tt'))
         document.querySelector(`input[name="target_type"][value="${params.get('tt')}"]`).checked = true;
+    if (params.has('co'))
+        document.querySelector(`input[name="coord_order"][value="${params.get('co')}"]`).checked = true;
 
     if (params.has('sh'))
         document.getElementById('source-horizontal-input').value = getFullDescriptor(crs_list, params.get('sh'), true);
@@ -709,6 +715,7 @@ async function loadFromURLParams(crs_list, searchParams = undefined) {
         document.getElementById('target-epoch').disabled = false;
         document.getElementById('target-epoch').value = params.get('te');
     }
+
     document.getElementById('source-coordinates').value = params.get('coords') ?? '';
     if (params.has('p3d'))
         if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
