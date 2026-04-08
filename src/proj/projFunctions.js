@@ -537,6 +537,37 @@ class Proj {
         return r;
     }
 
+    database_metadata() {
+        const keep = new Keeper(this.proj);
+        try {
+            const keys = [
+                'DATABASE.LAYOUT.VERSION.MAJOR',
+                'DATABASE.LAYOUT.VERSION.MINOR',
+                'EPSG.VERSION',
+                'EPSG.DATE',
+                'ESRI.VERSION',
+                'ESRI.DATE',
+                'IGNF.SOURCE',
+                'IGNF.VERSION',
+                'IGNF.DATE',
+                'NKG.SOURCE',
+                'NKG.VERSION',
+                'NKG.DATE',
+                'PROJ.VERSION',
+                'PROJ_DATA.VERSION',
+            ];
+            const res = {};
+            for (const key of keys) {
+                const key_ptr = keep.string(key);
+                const value = this.proj._proj_context_get_database_metadata(this.ctx, key_ptr);
+                res[key] = this.proj.UTF8ToString(value);
+            }
+            return res;
+        } finally {
+            keep.clean();
+        }
+    }
+
     /*
     PJ_LOG_NONE = 0,
     PJ_LOG_ERROR = 1,
