@@ -40,16 +40,50 @@
       <div id="app-content" class="loading-state">
         <div class="full-width-section">
           <h2>Distortion Factors</h2>
-          <p class="description-text">
+          <div class="description-text">
             Compute and visualize Tissot's indicatrix parameters and distortion factors to analyze map projection
-            distortions. Input your coordinates below to generate scaling and convergence metrics. Most of the
-            parameters are calculated with
-            <a href="https://proj.org/development/reference/datatypes.html#c.PJ_FACTORS" target="_blank"
-              >proj_factors()</a
-            >. Implemented with
+            distortions. Input your coordinates below to generate scaling and convergence metrics. Implemented with
             <a href="https://proj.org" target="_blank">PROJ</a>
             <span id="proj-version"></span>
-          </p>
+
+            <details class="extended-docs">
+              <summary class="docs-toggle-link">More information</summary>
+              <div class="docs-content">
+                <p>
+                  Most of the parameters are calculated with
+                  <a href="https://proj.org/development/reference/datatypes.html#c.PJ_FACTORS" target="_blank"
+                    >proj_factors()</a
+                  >. See
+                  <a href="https://neacsu.net/geodesy/snyder/2-general/sect_4/" target="_blank"
+                    >Map Projections - A Working Manual. Snyder 1987</a
+                  >
+                  for details.
+                </p>
+                <p>
+                  The partial derivatives ∂x/∂λ, ∂x/∂φ, ∂y/∂φ, ∂y/∂φ are computed for an sphere or ellipsoid with a=1.
+                </p>
+                <p>
+                  The "Elevation Scale Factor" is computed as Ra/(Ra + h) being Ra the
+                  <a href="https://en.wikipedia.org/wiki/Earth_radius#Non-directional_(Gaussian_and_mean)"
+                    >Gaussian radius at that latitude</a
+                  >
+                  and h the ellipsoidal height. The "Combined Scale Factor" is computed only when h and k are almost
+                  equal.
+                </p>
+                <p>
+                  Selecting a vertical CRS that has a geoid model in <a href="https://cdn.proj.org/">PROJ-data</a>
+                  will convert those orthometric heights into ellipsoidal heights if inputs are in Easting/Northing or
+                  N/E. This is useful only if you care about the "Elevation Scale Factor". Input in Lat/Lot are always
+                  with ellipsoidal heights.
+                </p>
+                <p>
+                  You can also use
+                  <a href="https://proj.org/en/stable/operations/projections/index.html">projections from PROJ</a>
+                  in the "Free Text" mode.
+                </p>
+              </div>
+            </details>
+          </div>
 
           <div class="checkbox-group">
             <label

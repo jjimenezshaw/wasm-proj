@@ -223,6 +223,53 @@ label {
     font-weight: 600;
 }
 
+/* --- Extended Documentation Toggle --- */
+.extended-docs {
+    margin-top: 0rem;
+    margin-bottom: 0rem;
+    text-align: right;
+}
+
+/* Style the summary to look like a link */
+/*details > summary {*/
+.docs-toggle-link {
+    display: inline-block;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-primary, #3b82f6);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    transition: text-decoration-color 0.2s ease;
+    border-radius: 4px;
+}
+
+.docs-toggle-link:hover {
+    text-decoration-color: var(--color-primary, #3b82f6);
+    background-color: var(--bg-element-alt);
+}
+
+/* The actual expanded content */
+.docs-content {
+    padding: 0.75rem;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    text-align: left; /* Switch back to left-align for readable docs */
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.docs-content p:first-child {
+    margin-top: 0;
+}
+
+.docs-content ul {
+    margin-bottom: 0;
+    padding-left: 1.5rem;
+}
+
 /* --- Advanced Options Panel --- */
 .btn-toggle {
     background-color: transparent;
