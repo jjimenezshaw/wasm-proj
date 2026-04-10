@@ -242,6 +242,7 @@ label {
     text-decoration-color: transparent;
     transition: text-decoration-color 0.2s ease;
     border-radius: 4px;
+    padding: 0.125rem 0.5rem;
 }
 
 .docs-toggle-link:hover {
