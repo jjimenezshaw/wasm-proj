@@ -222,7 +222,18 @@ function setupEventListeners(proj_worker) {
     document.getElementById('btn-transform').addEventListener('click', () => handleTransform(proj_worker));
 }
 
+/**
+ * "Backdoor" to enable PROJ debug messages (as errors) in the console
+ * @param {number} level
+ * @returns
+ */
+async function _proj_set_log_level(level) {
+    console.log(proj.log_level(level), await g_proj_worker.log_level(level));
+    return true;
+}
+
 let proj;
+let g_proj_worker; // just for debug function proj_set_log_level
 
 async function load() {
     const appContent = document.getElementById('app-content');
@@ -230,27 +241,36 @@ async function load() {
     loader.classList.remove('hidden');
 
     console.log('Downloading resources...', Date());
+    let proj_worker;
+    let run;
+    try {
+        proj = new Proj();
+        await proj.init();
+        const info = proj.proj_info();
+        console.log(info);
+        document.getElementById('proj-version').innerText = info.version;
+        document.getElementById('proj-version').title = info.compilation_date;
+        /////////////////////////
+        const bridge = new WorkerBridge();
+        proj_worker = bridge.create_main_proxy();
+        g_proj_worker = proj_worker;
 
-    proj = new Proj();
-    await proj.init();
-    const info = proj.proj_info();
-    console.log(info);
-    document.getElementById('proj-version').innerText = info.version;
-    document.getElementById('proj-version').title = info.compilation_date;
-    /////////////////////////
-    const bridge = new WorkerBridge();
-    const proj_worker = bridge.create_main_proxy();
-    await proj_worker.init();
+        await proj_worker.init();
 
-    const run = loadFromURLParams();
+        run = loadFromURLParams();
 
-    setupEventListeners(proj_worker);
+        setupEventListeners(proj_worker);
 
-    validateForm(true);
+        validateForm(true);
 
-    loader.classList.add('hidden');
-    appContent.classList.remove('loading-state');
-    console.log('Ready.', Date());
+        console.log('Ready.', Date());
+    } catch (e) {
+        console.error(e);
+        alert(`Problems loading the library. Unexpected behaviour.\n\n${e.message}`);
+    } finally {
+        loader.classList.add('hidden');
+        appContent.classList.remove('loading-state');
+    }
 
     if (run) handleTransform(proj_worker);
 }
