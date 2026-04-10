@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="./global.css" >
     <link rel="stylesheet" href="./transform.css" >
 
+    <script src="./release.js"></script>
+
     <script src="./proj/wasm/projModule.js"></script>
     <script src="./proj/projFunctions.js"></script>
     <script src="./proj/projBridge.js"></script>
@@ -26,6 +28,7 @@
           <a href="./transform.html">CRS transform</a>
           <a href="./transform_pipeline.html">Pipeline transform</a>
           <a href="./projinfo.html">projinfo</a>
+          <a href="./factors.html">Distortion factors</a>
           <a href="./">Home</a>
 
           <a
@@ -38,13 +41,67 @@
 
       <div id="app-content" class="loading-state">
         <div class="full-width-section">
-          <h2>Coordinate Transformation with Wasm PROJ</h2>
-          <p class="description-text">
+          <h2>Coordinate Transformation</h2>
+          <div class="description-text">
             Select your source and target CRS. You can choose predefined systems from the catalog or define custom ones
             via free text (WKT). Enter your coordinates below to perform the transformation. Implemented with
             <a href="https://proj.org" target="_blank">PROJ</a>
             <span id="proj-version"></span>
-          </p>
+
+            <details class="extended-docs">
+              <summary class="docs-toggle-link">More information</summary>
+              <div class="docs-content">
+                <p>
+                  Selecting a vertical CRS only makes sense if its geoid model is in
+                  <a href="https://cdn.proj.org/">PROJ-data</a>. To use geoid model files or any other grid file you
+                  have to enable "Use network". Initial computation that involves grid files may be slower, as it
+                  downloads part of the grid file.
+                </p>
+                <p>
+                  When no vertical or 3D system is provided in source and target, PROJ does by default a 2D
+                  transformation. If you want a 3D transformation select "Promote to 3D". Horizontal values can be
+                  slightly different depending on the transformation.
+                </p>
+                <p>
+                  To use your own "Main Database" in the "Advanced Options", it must be consistent with the current db
+                  schema. See that the "Auxiliary Databases" (can be multiple files) will make the processing slower,
+                  even if those CRSs are not used.
+                </p>
+                <p>
+                  "Free Text" definion for a CRS works pretty well with
+                  <a href="https://www.ogc.org/standards/wkt-crs/">WKT</a>,
+                  <a href="https://proj.org/en/stable/specifications/projjson.html">PROJJSON</a>
+                  or any other way to define a CRS accepted by PROJ.
+                </p>
+                <p>
+                  "Input Coordinates" separator can be comma, semicolon, tab or space. The usage of comma as decimal
+                  separator works only with semicolon as coordinate separator. Hash (#) as first character consider the
+                  line a comment, not using that line. Each line can have different separators. Degrees are only
+                  accepted as decimal degrees. Not as DDMMSS.
+                </p>
+                <p>
+                  The values for the input coordinates are X, Y, Z, t, with its meaning depending on the axes of the
+                  CRS. Only the first two are mandatory. Extra values per line will be ignored.
+                </p>
+                <p>
+                  Most of the CRSs do not support an Epoch. Only some dependent systems that involve time dependent
+                  transformations.
+                </p>
+                <p>
+                  Pay attention to the "Last Operation Summary". The
+                  <a href="https://proj.org/en/stable/operations/pipeline.html">pipeline operator</a>
+                  can be very useful to understand the actual transformation applied.
+                </p>
+                <p>
+                  Look how the URL is updated with your data. Just copy it if you want to share your transformation.
+                </p>
+                <p>
+                  The transformation applied is usually equivalent to what you can do with
+                  <a href="https://proj.org/en/stable/apps/cs2cs.html">cs2cs</a>
+                </p>
+              </div>
+            </details>
+          </div>
 
           <div class="checkbox-group">
             <label class="checkbox-label" title="Promotes 2D CRS to 3D. It may change the transformation behavior.">
