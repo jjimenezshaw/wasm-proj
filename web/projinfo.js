@@ -124,7 +124,7 @@ async function load() {
         console.log('proj_info', info);
         console.log('database_metadata', proj.database_metadata());
         document.getElementById('proj-version').innerText = info.version;
-        document.getElementById('proj-version').title = info.compilation_date;
+        document.getElementById('proj-version').title = dictionaryToString(info, '\n');
 
         if (loadFromURLParams()) {
             run(proj);

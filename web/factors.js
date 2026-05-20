@@ -373,7 +373,7 @@ async function load() {
         const info = proj.proj_info();
         console.log(info);
         document.getElementById('proj-version').innerText = info.version;
-        document.getElementById('proj-version').title = info.compilation_date;
+        document.getElementById('proj-version').title = dictionaryToString(info, '\n');
         const crs_list = get_crs_list();
         /////////////////////////
         const bridge = new WorkerBridge();

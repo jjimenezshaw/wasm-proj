@@ -249,7 +249,7 @@ async function load() {
         const info = proj.proj_info();
         console.log(info);
         document.getElementById('proj-version').innerText = info.version;
-        document.getElementById('proj-version').title = info.compilation_date;
+        document.getElementById('proj-version').title = dictionaryToString(info, '\n');
         /////////////////////////
         const bridge = new WorkerBridge();
         proj_worker = bridge.create_main_proxy();

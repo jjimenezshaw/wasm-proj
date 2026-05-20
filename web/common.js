@@ -15,6 +15,12 @@ function getCrsAuthCode(descriptor) {
     return ['', ''];
 }
 
+function dictionaryToString(dictionary, separator = ', ') {
+    return Object.entries(dictionary)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(separator);
+}
+
 function getCrsId(descriptor) {
     const pair = getCrsAuthCode(descriptor);
     if (pair[0]) {
