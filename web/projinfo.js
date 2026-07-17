@@ -62,15 +62,17 @@ function clearField(targetId) {
 function parseParams(commandLine) {
     // Regex Breakdown:
     // 1. "([^"\\]*(?:\\.[^"\\]*)*)" : Matches double quotes, allowing escaped chars \"
-    // 2. '([^'\\]*(?:\\.[^'\\]*)*)' : Matches single quotes, allowing escaped chars \'
-    // 3. (?:\\(?=\s)|[^\s\\])+      : Matches unquoted text, allowing escaped spaces \
-    const regex = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|((?:\\(?=\s)|[^\s\\])+)/g;
+    // 2. `([^`\\]*(?:\\.[^`\\]*)*)` : Matches backticks, allowing escaped chars \`
+    // 3. '([^'\\]*(?:\\.[^'\\]*)*)' : Matches single quotes, allowing escaped chars \'
+    // 4. (?:\\(?=\s)|[^\s\\])+      : Matches unquoted text, allowing escaped spaces \
+    const regex =
+        /"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`\\]*(?:\\.[^`\\]*)*)`|'([^'\\]*(?:\\.[^'\\]*)*)'|((?:\\(?=\s)|[^\s\\])+)/g;
     const params = [];
 
     const matches = commandLine.matchAll(regex);
 
     for (const match of matches) {
-        const value = match[1] ?? match[2] ?? match[3];
+        const value = match[1] ?? match[2] ?? match[3] ?? match[4];
 
         // Clean up the escapes (e.g., changing \" to ")
         // This mimics how BASH strips the escape character after processing
