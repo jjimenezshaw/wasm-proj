@@ -112,19 +112,25 @@ function setupEventListeners(proj) {
     document.getElementById('btn-transform').addEventListener('click', () => run(proj));
 }
 
-async function load() {
+async function load(opts) {
+    if (!document.querySelector('.main-page') && !opts.wasm_dir) return;
+
     const appContent = document.getElementById('app-content');
     const loader = document.getElementById('loading-indicator');
     loader.classList.remove('hidden');
 
     console.log('Downloading resources...', Date());
 
+    const ret = {};
     try {
         const proj = new Proj();
-        await proj.init();
+        await proj.init(undefined, undefined, { wasm_dir: opts.wasm_dir });
         const info = proj.proj_info();
+        const database_metadata = proj.database_metadata();
         console.log('proj_info', info);
-        console.log('database_metadata', proj.database_metadata());
+        console.log('database_metadata', database_metadata);
+        Object.assign(ret, info);
+        Object.assign(ret, database_metadata);
         document.getElementById('proj-version').innerText = info.version;
         document.getElementById('proj-version').title = dictionaryToString(info, '\n');
 
@@ -142,6 +148,7 @@ async function load() {
         loader.classList.add('hidden');
         appContent.classList.remove('loading-state');
     }
+    return ret;
 }
 
 window.addEventListener('load', load);

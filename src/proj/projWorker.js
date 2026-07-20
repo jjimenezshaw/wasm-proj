@@ -14,7 +14,7 @@ if (is_node) {
 
 const g_object_registry = new Map();
 
-async function register_proj(registry) {
+async function register_proj(registry, wasm_dir) {
     try {
         console.log('initializing Proj in worker');
         if (is_node) {
@@ -23,7 +23,8 @@ async function register_proj(registry) {
             const functions = require('./projFunctions.js');
             globalThis.Proj = functions.Proj;
         } else {
-            importScripts('./wasm/projModule.js');
+            wasm_dir ??= './wasm/';
+            importScripts(`${wasm_dir}projModule.js`);
             importScripts('./projFunctions.js');
         }
         const root = new Proj();
@@ -37,7 +38,7 @@ async function register_proj(registry) {
 }
 
 async function handle_message(payload) {
-    const { correlation_id, object_id, method, args } = payload;
+    const { correlation_id, object_id, method, args, wasm_dir } = payload;
 
     if (object_id === 'system' && method === 'get_status') {
         send_message({
@@ -53,7 +54,7 @@ async function handle_message(payload) {
 
     try {
         if (g_object_registry.size === 0) {
-            await register_proj(g_object_registry);
+            await register_proj(g_object_registry, wasm_dir);
         }
 
         const target_object = g_object_registry.get(object_id);

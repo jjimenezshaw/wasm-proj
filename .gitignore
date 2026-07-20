@@ -1,4 +1,5 @@
 /proj_build_cache/
 /proj_output/
 web/proj
+web/master/wasm
 /.vscode

@@ -11,3 +11,7 @@
     box-sizing: border-box;
     margin-top: 0.5rem;
 }
+
+.master {
+    color: rgb(222, 0, 222);
+}
