@@ -15,6 +15,12 @@ function getCrsAuthCode(descriptor) {
     return ['', ''];
 }
 
+function dictionaryToString(dictionary, separator = ', ') {
+    return Object.entries(dictionary)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(separator);
+}
+
 function getCrsId(descriptor) {
     const pair = getCrsAuthCode(descriptor);
     if (pair[0]) {
@@ -384,7 +390,7 @@ function toggleInputs(columnPrefix, doNotUpdateUrl = false) {
     validateForm(doNotUpdateUrl);
 }
 
-function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizontal) {
+function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizontal, map_relative_path) {
     // 1. Checkboxes & simple inputs
     ['promote-3d', 'use-network'].forEach((id) => {
         document.getElementById(id)?.addEventListener('change', () => validateForm());
@@ -451,7 +457,7 @@ function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizon
     });
 
     // 6. Main Action Buttons
-    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj));
+    document.getElementById('points-in-map').addEventListener('click', () => showPointsInMap(proj, map_relative_path));
 
     // Diagram Toggle
     document.getElementById('toggle-diagrams')?.addEventListener('change', (e) => {

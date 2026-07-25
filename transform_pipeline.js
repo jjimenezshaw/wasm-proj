@@ -247,9 +247,10 @@ async function load() {
         proj = new Proj();
         await proj.init();
         const info = proj.proj_info();
-        console.log(info);
+        console.log('proj_info', info);
+        console.log('database_metadata', proj.database_metadata());
         document.getElementById('proj-version').innerText = info.version;
-        document.getElementById('proj-version').title = info.compilation_date;
+        document.getElementById('proj-version').title = dictionaryToString(info, '\n');
         /////////////////////////
         const bridge = new WorkerBridge();
         proj_worker = bridge.create_main_proxy();
