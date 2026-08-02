@@ -5,6 +5,8 @@ async function processAllCoordinates(proj_worker) {
 
     if (!sourceCoords.trim()) return;
 
+    const firstColumnIsId = document.getElementById('first-column-is-id').checked;
+
     const container = document.getElementById('cards-container');
     container.innerHTML = '';
     lastFactors = null;
@@ -12,7 +14,7 @@ async function processAllCoordinates(proj_worker) {
     document.getElementById('computing').classList.remove('required');
     document.getElementById('computing').classList.remove('hidden');
     try {
-        let points = parseInputCoordinates(sourceCoords);
+        let [points, ids] = parseInputCoordinates(sourceCoords, firstColumnIsId);
         if (points.length === 0) return;
         points = points.map((e) => (e.length === 2 ? [...e, 0] : e));
 
@@ -62,7 +64,7 @@ async function processAllCoordinates(proj_worker) {
         const labeled = pointsEN.map((e) => ({ easting: e[0], northing: e[1], elevation: e[2] }));
 
         const factsCompleted = facts.map((entry, i) => ({ ...entry, ...labeled[i] }));
-        lastFactors = factsCompleted;
+        lastFactors = ids.length ? factsCompleted.map((entry, i) => ({ ...entry, id: ids[i] })) : factsCompleted;
         let easting_u, northing_u, elevation_u;
         function unit_abbr(unit) {
             switch (unit.toLowerCase()) {
@@ -84,8 +86,8 @@ async function processAllCoordinates(proj_worker) {
         factsCompleted.forEach((fact, index) => {
             const card = document.createElement('div');
             card.className = 'result-card';
-
-            card.innerHTML = `<div class="card-title">Point ${index + 1}</div>`;
+            const id = ids.length ? ids[index] : `${index + 1}`;
+            card.innerHTML = `<div class="card-title">Point ${id}</div>`;
             if (fact.error_code !== 0) {
                 card.innerHTML += `<div>Error ${fact.error_code}: ${fact.error_msg}</div>`;
             } else {
@@ -298,14 +300,16 @@ function setupEventListenersFactors(proj_worker, proj, crs_list) {
     document.getElementById('btn-transform').addEventListener('click', async () => processAllCoordinates(proj_worker));
 }
 
-async function showPointsInMap(proj) {
+async function showPointsInMap(proj, relative_path) {
     const coords = document.getElementById('source-coordinates').value;
     if (!coords.trim()) {
         console.log('No points to show in the map.');
         return;
     }
 
-    let points = parseInputCoordinates(coords).map((e) => e.slice(0, 2));
+    const firstColumnIsId = document.getElementById('first-column-is-id')?.checked;
+    let [points, ids] = parseInputCoordinates(coords, firstColumnIsId);
+    points = points.map((e) => e.slice(0, 2));
 
     let s = getCrsFromInput('source');
     if (s.length === 0) throw new Error('Select a valid source CRS');
@@ -325,6 +329,7 @@ async function showPointsInMap(proj) {
         points = points.map((e) => [e[1], e[0]]);
     }
 
+    relative_path ??= '.';
     let transformer;
     try {
         const t = 'EPSG:4326';
@@ -335,8 +340,13 @@ async function showPointsInMap(proj) {
             always_xy: true,
         });
         const transformed = (await transformer.transform({ points: points })).map((e) => [e[1], e[0]]);
-        const res = transformed.map((point) => point.map((e) => e.toFixed(6)).join(',')).join(';');
-        const mapUrl = `./pointsinmap.html?points=${res}`;
+        const labels = firstColumnIsId
+            ? ids.map((p) => encodeURIComponent(encodeURIComponent(p)))
+            : Array.from({ length: transformed.length }, (_, i) => String(i + 1));
+        const res = transformed
+            .map((point, idx) => `${labels[idx]},${point.map((e) => e.toFixed(6)).join(',')}`)
+            .join(';');
+        const mapUrl = `${relative_path}/pointsinmap.html?points=${res}`;
         window.open(mapUrl, '_blank');
     } catch (e) {
         console.error(`Error showing in a map: ${e}`);
