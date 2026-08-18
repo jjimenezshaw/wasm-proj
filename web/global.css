@@ -156,6 +156,10 @@ a {
     text-decoration-color: var(--color-primary);
 }
 
+.theme-color {
+    color: var(--color-primary);
+}
+
 /* --- Layout Wrappers --- */
 .main-wrapper {
     width: 100%;

@@ -6,8 +6,9 @@
 class WorkerBridge {
     static current_script_url = typeof document !== 'undefined' ? document.currentScript.src : ''; // just for browser
 
-    constructor(worker_path) {
+    constructor(worker_path, wasm_dir) {
         this.pending_requests = new Map();
+        this.wasm_dir = wasm_dir;
         this.next_correlation_id = 1;
         const is_node = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
@@ -65,6 +66,7 @@ class WorkerBridge {
     execute(object_id, method, args = [], timeout_ms) {
         return new Promise((resolve, reject) => {
             const correlation_id = this.next_correlation_id++;
+            const wasm_dir = this.wasm_dir;
 
             const timer = setTimeout(() => {
                 if (this.pending_requests.has(correlation_id)) {
@@ -84,6 +86,7 @@ class WorkerBridge {
                 object_id,
                 method,
                 args,
+                wasm_dir,
             });
         });
     }
