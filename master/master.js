@@ -1,6 +1,6 @@
-async function load_master(opts) {
+async function load_master(opts, url) {
 
-    const response = await fetch('../transform.html');
+    const response = await fetch(url);
     const html = await response.text();
     const fragment = document.createRange().createContextualFragment(html);
     const insert = fragment.getElementById('app-content')
@@ -14,4 +14,4 @@ async function load_master(opts) {
         compiled ${metadata.compilation_date}, EPSG: ${metadata['EPSG.VERSION']}`
 }
 
-window.addEventListener('load', load_master);
+//window.addEventListener('load', load_master);
