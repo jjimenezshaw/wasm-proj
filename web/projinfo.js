@@ -29,7 +29,10 @@ async function copyToClipboard(targetId, btnElement) {
 }
 
 function updateURLParams() {
+    const oldParams = new URLSearchParams(window.location.search);
     const params = new URLSearchParams();
+    params.set('nsrs_aux_db', oldParams.get('nsrs_aux_db') ?? '');
+
     params.set('params', document.getElementById('params-text').value);
     params.set('net', document.getElementById('use-network').checked ? '1' : '0');
 
@@ -45,8 +48,12 @@ function updateURLParams() {
     window.history.replaceState({ path: newUrl }, '', newUrl);
 }
 
-function loadFromURLParams() {
+async function loadFromURLParams(proj) {
     const params = new URLSearchParams(window.location.search);
+
+    if (params.get('nsrs_aux_db') === '1') {
+        await loadAuxDbUrlAndSet(proj);
+    }
 
     document.getElementById('params-text').value = params.get('params') ?? '';
     if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
@@ -90,6 +97,22 @@ function run(proj) {
     if (params.length && ['projinfo', 'projinfo.exe'].includes(params[0].toLowerCase())) {
         params.shift(); // allow the first param to be 'projinfo'
     }
+
+    function addDb(elem, is_aux) {
+        /// main and auxiliary dbs in projinfo are set via the params
+        /// they have to be somewhere in the FS, that was done by proj!
+        if (elem.classList.contains('has-file')) {
+            const names = elem.textContent;
+            names.split(',').forEach((db) => {
+                params.push(is_aux ? '--aux-db-path' : '--main-db-path');
+                params.push(`/${db.trim()}`);
+                console.log(`using db ${db.trim()}`);
+            });
+        }
+    }
+    addDb(document.getElementById('db-file-name'), false);
+    addDb(document.getElementById('aux-files-name'), true);
+
     const res = proj.projinfo({ params: params, use_network: use_network });
     const ok = '&#9989;';
     const wrong = '&#10060;';
@@ -97,10 +120,15 @@ function run(proj) {
     document.getElementById('output-text').innerText = res.msg;
 }
 
-function setupEventListeners(proj) {
+async function setupEventListeners(proj) {
     document.querySelectorAll('[data-clear]').forEach((btn) => {
         btn.addEventListener('click', function () {
             clearField(this.getAttribute('data-clear'));
+        });
+    });
+    document.querySelectorAll('[data-load]')?.forEach((btn) => {
+        btn.addEventListener('click', function () {
+            document.getElementById(this.getAttribute('data-load')).click();
         });
     });
     document.querySelectorAll('[data-copy]').forEach((btn) => {
@@ -110,6 +138,13 @@ function setupEventListeners(proj) {
     });
 
     document.getElementById('btn-transform').addEventListener('click', () => run(proj));
+
+    async function register(arg) {
+        proj.set_database(arg);
+    }
+    await setupAdvancedOptions(register, () => {
+        console.log('callback called');
+    });
 }
 
 async function load(opts) {
@@ -134,11 +169,11 @@ async function load(opts) {
         document.getElementById('proj-version').innerText = info.version;
         document.getElementById('proj-version').title = dictionaryToString(info, '\n');
 
-        if (loadFromURLParams()) {
+        await setupEventListeners(proj);
+
+        if (await loadFromURLParams(proj)) {
             run(proj);
         }
-
-        setupEventListeners(proj);
 
         console.log('Ready.', Date());
     } catch (e) {
