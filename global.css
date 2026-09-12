@@ -638,6 +638,33 @@ select.combo-select option:checked {
     line-height: 1.4;
 }
 
+/* --- Form Layout Modifiers --- */
+.field-group-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.5rem;
+}
+
+.field-group-wrap .field-inline {
+    margin-bottom: 0.4rem;
+}
+
+.field-decimal {
+    flex: 1 1 180px;
+}
+
+.standard-select {
+    cursor: pointer;
+    padding: 0.4rem;
+    font-size: 0.8rem;
+    font-family: inherit;
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+}
+
 /* --- Loading Indicator --- */
 #loading-indicator {
     position: absolute;

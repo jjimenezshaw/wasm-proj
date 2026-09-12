@@ -49,27 +49,101 @@ function clearField(targetId) {
     el.focus();
 }
 
-function parseInputCoordinates(sourceCoords) {
+function parseInputCoordinates(sourceCoords, first_column_is_id) {
     const coordLines = sourceCoords.split('\n').filter((line) => line.trim().length > 0);
     const points = [];
+    const ids = [];
+
+    // Strips outer quotes and unescapes internal quotes (\")
+    const unquote = (str) => {
+        str = str.trim();
+        if (str.startsWith('"') && str.endsWith('"')) {
+            return str.slice(1, -1).replaceAll('\\"', '"');
+        }
+        return str;
+    };
+
     coordLines.forEach((line) => {
-        if (line[0] === '#') {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('#')) {
             return;
         }
+
         let splitted = [];
-        for (const separator of [';', ',', '\t', ' ']) {
-            splitted = line.split(separator);
-            if (splitted.length >= 2) {
+        for (const separator of [';', ',', '\\s+']) {
+            const regex = new RegExp(`${separator}(?=(?:(?:[^"]*"){2})*[^"]*$)`);
+            const parts = trimmedLine
+                .split(regex)
+                .map((e) => e.trim())
+                .filter(Boolean);
+            if (parts.length >= 2) {
+                splitted = parts;
                 break;
             }
         }
-        // replace ',' as decimal separator with ';' column separator
-        splitted = splitted.map((e) => e.replace(',', '.'));
-        splitted = splitted.filter((n) => n); // remove empty elements
-        const floats = splitted.map((e) => Number.parseFloat(e));
+        if (splitted.length === 0) {
+            splitted = [trimmedLine];
+        }
+
+        if (first_column_is_id) {
+            const rawId = splitted.shift();
+            ids.push(unquote(rawId));
+        }
+
+        const floats = splitted
+            .map((e) => unquote(e).replace(',', '.'))
+            .filter((n) => n.length > 0)
+            .map((e) => Number.parseFloat(e));
+
         points.push(floats);
     });
-    return points;
+
+    return [points, ids];
+}
+
+async function handleTransformCommon(transformer) {
+    const sourceCoords = document.getElementById('source-coordinates').value;
+
+    if (!sourceCoords.trim()) return;
+
+    const output = document.getElementById('target-coordinates');
+    output.value = '... computing ...';
+    console.time('transformation');
+
+    const firstColumnIsId = document.getElementById('first-column-is-id').checked;
+    const inverse = document.getElementById('inverse')?.checked;
+
+    const sepDic = { sp: ' ', comma: ',', semicolon: ';', tab: '\t' };
+    const sep = sepDic[document.getElementById('coord-separator').value] ?? sepDic.sp;
+
+    const [points, ids] = parseInputCoordinates(sourceCoords, firstColumnIsId);
+
+    const summaryBox = document.getElementById('transformation-summary');
+    summaryBox.innerText = '';
+    try {
+        try {
+            const transformed = await transformer.transform({ points: points, inverse: inverse });
+            const dp = document.getElementById(`decimal-places`).value;
+
+            const pre = firstColumnIsId ? ids.map((p) => `${p}${sep}`) : new Array(transformed.length).fill('');
+            const res = transformed
+                .map((point, idx) => pre[idx] + point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(sep))
+                .join('\n');
+            output.value = res;
+        } catch (e) {
+            output.value = `Error:${e}`;
+            return;
+        }
+        try {
+            const lastOp = await transformer.get_last_operation();
+            const date = new Date().toLocaleString();
+            summaryBox.innerText = `${lastOp.description}\n\n${lastOp.proj_5}\n\n${date}`;
+        } catch (e) {
+            summaryBox.innerText = `Error: ${e}`;
+        }
+    } finally {
+        console.timeEnd('transformation');
+    }
 }
 
 function handleFileLoad(event, targetId) {
@@ -392,7 +466,7 @@ function toggleInputs(columnPrefix, doNotUpdateUrl = false) {
 
 function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizontal, map_relative_path) {
     // 1. Checkboxes & simple inputs
-    ['promote-3d', 'use-network'].forEach((id) => {
+    ['promote-3d', 'use-network', 'coord-separator', 'first-column-is-id'].forEach((id) => {
         document.getElementById(id)?.addEventListener('change', () => validateForm());
     });
     document.getElementById('show-deprecated').addEventListener('change', () => {
@@ -629,7 +703,12 @@ function updateURLParams() {
     set('p3d', document.getElementById('promote-3d')?.checked ? '1' : '');
     set('net', document.getElementById('use-network')?.checked ? '1' : '');
     set('depr', document.getElementById('show-deprecated')?.checked ? '1' : '');
+    set('idc', document.getElementById('first-column-is-id')?.checked ? '1' : '');
+    set('sep', document.getElementById('coord-separator')?.value);
     set('coords', document.getElementById('source-coordinates')?.value);
+
+    set('p', document.getElementById('pipeline-text')?.value);
+    set('inv', document.getElementById('inverse')?.checked ? '1' : '');
 
     const keysToDelete = [];
     params.forEach((value, key) => {
@@ -723,10 +802,14 @@ async function loadFromURLParams(crs_list, searchParams = undefined) {
     }
 
     document.getElementById('source-coordinates').value = params.get('coords') ?? '';
-    if (params.has('p3d'))
-        if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
+    if (params.has('p3d')) document.getElementById('promote-3d').checked = params.get('p3d') === '1';
     if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
     if (params.has('depr')) document.getElementById('show-deprecated').checked = params.get('depr') === '1';
+    if (params.has('idc')) document.getElementById('first-column-is-id').checked = params.get('idc') === '1';
+    if (params.has('inv')) document.getElementById('inverse').checked = params.get('inv') === '1';
+
+    if (params.has('sep')) document.getElementById('coord-separator').value = params.get('sep') ?? 'sp';
+    if (params.has('p')) document.getElementById('pipeline-text').value = params.get('p') ?? '';
 
     for (const id of [
         'source-horizontal-input',

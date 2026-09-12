@@ -50,10 +50,11 @@
       async function load() {
         const points = getPointsFromUrl();
         const fgMarker = new L.FeatureGroup();
-        points.forEach((point, i) => {
-          if (point.length === 2) {
+        points.forEach((point) => {
+          if (point.length === 3) {
+            const id = decodeURIComponent(point.shift());
             const marker = L.marker(point);
-            if (points.length > 1) marker.bindTooltip((i + 1).toString());
+            marker.bindTooltip(id);
             fgMarker.addLayer(marker);
             fgMarker.addTo(map);
           }
