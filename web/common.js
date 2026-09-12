@@ -93,7 +93,7 @@ function parseInputCoordinates(sourceCoords, first_column_is_id) {
         const floats = splitted
             .map((e) => unquote(e).replace(',', '.'))
             .filter((n) => n.length > 0)
-            .map((e) => Number.parseFloat(e));
+            .map((e) => Number(e));
 
         points.push(floats);
     });
