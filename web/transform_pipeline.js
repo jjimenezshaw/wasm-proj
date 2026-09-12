@@ -42,39 +42,6 @@ function handleFileLoad(event, targetId) {
     event.target.value = '';
 }
 
-function updateURLParams() {
-    const params = new URLSearchParams();
-
-    params.set('p', document.getElementById('pipeline-text').value);
-
-    params.set('net', document.getElementById('use-network').checked ? '1' : '');
-    params.set('inv', document.getElementById('inverse').checked ? '1' : '');
-    params.set('coords', document.getElementById('source-coordinates').value);
-
-    const keysToDelete = [];
-    params.forEach((value, key) => {
-        if (value === '') keysToDelete.push(key);
-    });
-    keysToDelete.forEach((key) => {
-        params.delete(key);
-    });
-
-    const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({ path: newUrl }, '', newUrl);
-}
-
-function loadFromURLParams() {
-    const params = new URLSearchParams(window.location.search);
-
-    document.getElementById('pipeline-text').value = params.get('p') ?? '';
-
-    document.getElementById('source-coordinates').value = params.get('coords') ?? '';
-    if (params.has('net')) document.getElementById('use-network').checked = params.get('net') === '1';
-    if (params.has('inv')) document.getElementById('inverse').checked = params.get('inv') === '1';
-
-    return params.get('run') === '1';
-}
-
 function validateForm(doNotUpdateUrl = false) {
     const btn = document.getElementById('btn-transform');
     const coords = document.getElementById('source-coordinates').value.trim();
@@ -118,45 +85,12 @@ function clearField(targetId) {
     el.focus();
 }
 
-function parseInputCoordinates(sourceCoords) {
-    const coordLines = sourceCoords.split('\n').filter((line) => line.trim().length > 0);
-    const points = [];
-    coordLines.forEach((line) => {
-        let splitted = [];
-        for (const separator of [';', ',', '\t', ' ']) {
-            splitted = line.split(separator);
-            if (splitted.length >= 2) {
-                break;
-            }
-        }
-        // replace ',' as decimal separator with ';' column separator
-        splitted = splitted.map((e) => e.replace(',', '.'));
-        splitted = splitted.filter((n) => n); // remove empty elements
-        const floats = splitted.map((e) => Number.parseFloat(e));
-        points.push(floats);
-    });
-    return points;
-}
-
 async function handleTransform(proj_worker) {
-    const sourceCoords = document.getElementById('source-coordinates').value;
-
-    if (!sourceCoords.trim()) return;
-
-    const output = document.getElementById('target-coordinates');
-    output.value = '... computing ...';
-
-    const inverse = document.getElementById('inverse').checked;
-    const useNetwork = document.getElementById('use-network').checked;
-
-    const points = parseInputCoordinates(sourceCoords);
-
-    const summaryBox = document.getElementById('transformation-summary');
-    const pipeline = document.getElementById('pipeline-text').value;
-    summaryBox.innerText = '';
     let transformer;
     try {
         try {
+            const pipeline = document.getElementById('pipeline-text').value;
+            const useNetwork = document.getElementById('use-network').checked;
             transformer = await proj_worker.create_transformer_from_pipeline({
                 pipeline: pipeline,
                 use_network: useNetwork,
@@ -165,35 +99,14 @@ async function handleTransform(proj_worker) {
             output.value = `Error:${e}`;
             return;
         }
-        try {
-            const transformed = await transformer.transform({
-                points: points,
-                inverse: inverse,
-            });
-            const dp = document.getElementById(`decimal-places`).value;
-
-            const res = transformed
-                .map((point) => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' '))
-                .join('\n');
-            output.value = res;
-        } catch (e) {
-            output.value = `Error:${e}`;
-            return;
-        }
-        try {
-            const lastOp = await transformer.get_last_operation();
-            const date = new Date().toLocaleString();
-            summaryBox.innerText = `${lastOp.description}\n\n${lastOp.proj_5}\n\n${date}`;
-        } catch (e) {
-            summaryBox.innerText = `Error: ${e}`;
-        }
+        await handleTransformCommon(transformer);
     } finally {
-        if (transformer) await transformer.dispose();
+        await transformer?.dispose();
     }
 }
 
 function setupEventListeners(proj_worker) {
-    ['inverse', 'use-network'].forEach((id) => {
+    ['inverse', 'use-network', 'coord-separator', 'first-column-is-id'].forEach((id) => {
         document.getElementById(id).addEventListener('change', () => validateForm());
     });
 
@@ -258,7 +171,7 @@ async function load() {
 
         await proj_worker.init();
 
-        run = loadFromURLParams();
+        run = await loadFromURLParams();
 
         setupEventListeners(proj_worker);
 

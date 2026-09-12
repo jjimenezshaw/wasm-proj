@@ -89,6 +89,10 @@
             <div class="field">
               <div class="flex-header">
                 <label>Input Coordinates <span class="required">*</span></label>
+                <label class="checkbox-label" title="Uses the first column as name of the points">
+                  <input type="checkbox" id="first-column-is-id" >
+                  First column is ID
+                </label>
                 <button type="button" class="btn-small" data-load="coords-file">Load File</button>
                 <input type="file" id="coords-file" class="hidden" >
               </div>
@@ -107,10 +111,21 @@
           <div class="column">
             <h2>Output</h2>
 
-            <div class="field-inline">
-              <label for="decimal-places">Horizontal decimal places</label>
-              <input type="number" id="decimal-places" min="1" max="12" value="4" class="w-3rem" >
-              <span class="helper-text"></span>
+            <div class="field-group-wrap">
+              <div class="field-inline field-decimal">
+                <label for="decimal-places">Horizontal decimal places</label>
+                <input type="number" id="decimal-places" min="1" max="12" value="4" class="w-3rem" >
+              </div>
+
+              <div class="field-inline">
+                <label for="coord-separator">Separator</label>
+                <select id="coord-separator" class="standard-select">
+                  <option value="sp">Space</option>
+                  <option value="comma">Comma (,)</option>
+                  <option value="semicolon">Semicolon (;)</option>
+                  <option value="tab">Tab</option>
+                </select>
+              </div>
             </div>
 
             <div class="field">

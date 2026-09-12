@@ -28,7 +28,9 @@ async function swapSourceTarget(crs_list) {
     updateURLParams();
 
     const params = new URLSearchParams(window.location.search);
-    const newParams = new URLSearchParams();
+    const newParams = new URLSearchParams(
+        ['s', 't'].flatMap((k1) => ['t', 'h', 'v', 'f', 'e'].map((k2) => [k1 + k2, ''])),
+    );
 
     // Loop through parameters and swap the 's' and 't' prefixes
     params.forEach((value, key) => {
@@ -83,8 +85,10 @@ function showPointsInMap(proj, relative_path) {
         console.log('No points to show in the map.');
         return;
     }
+    const firstColumnIsId = document.getElementById('first-column-is-id').checked;
 
-    const points = parseInputCoordinates(coords).map((e) => e.slice(0, 2));
+    let [points, ids] = parseInputCoordinates(coords, firstColumnIsId);
+    points = points.map((e) => e.slice(0, 2));
     relative_path ??= '.';
     let transformer;
     try {
@@ -97,7 +101,12 @@ function showPointsInMap(proj, relative_path) {
             promote_to_3D: false,
         });
         const transformed = transformer.transform({ points: points });
-        const res = transformed.map((point) => point.map((e) => e.toFixed(6)).join(',')).join(';');
+        const labels = firstColumnIsId
+            ? ids.map((p) => encodeURIComponent(encodeURIComponent(p)))
+            : Array.from({ length: transformed.length }, (_, i) => String(i + 1));
+        const res = transformed
+            .map((point, idx) => `${labels[idx]},${point.map((e) => e.toFixed(6)).join(',')}`)
+            .join(';');
         const mapUrl = `${relative_path}/pointsinmap.html?points=${res}`;
         window.open(mapUrl, '_blank');
     } catch (e) {
@@ -109,24 +118,11 @@ function showPointsInMap(proj, relative_path) {
 }
 
 async function handleTransform(proj_worker) {
-    const sourceCoords = document.getElementById('source-coordinates').value;
-
-    if (!sourceCoords.trim()) return;
-
-    const output = document.getElementById('target-coordinates');
-    output.value = '... computing ...';
-    console.time('transformation');
-
-    const promote3D = document.getElementById('promote-3d').checked;
-    const useNetwork = document.getElementById('use-network').checked;
-
-    const points = parseInputCoordinates(sourceCoords);
-
-    const summaryBox = document.getElementById('transformation-summary');
-    summaryBox.innerText = '';
     let transformer;
     try {
         try {
+            const promote3D = document.getElementById('promote-3d').checked;
+            const useNetwork = document.getElementById('use-network').checked;
             const s = getCrsFromInput('source');
             const t = getCrsFromInput('target');
             transformer = await proj_worker.create_transformer_from_crs({
@@ -141,28 +137,9 @@ async function handleTransform(proj_worker) {
             output.value = `Error:${e}`;
             return;
         }
-        try {
-            const transformed = await transformer.transform({ points: points });
-            const dp = document.getElementById(`decimal-places`).value;
-
-            const res = transformed
-                .map((point) => point.map((e, index) => e.toFixed(index < 2 ? dp : 4)).join(' '))
-                .join('\n');
-            output.value = res;
-        } catch (e) {
-            output.value = `Error:${e}`;
-            return;
-        }
-        try {
-            const lastOp = await transformer.get_last_operation();
-            const date = new Date().toLocaleString();
-            summaryBox.innerText = `${lastOp.description}\n\n${lastOp.proj_5}\n\n${date}`;
-        } catch (e) {
-            summaryBox.innerText = `Error: ${e}`;
-        }
+        await handleTransformCommon(transformer);
     } finally {
-        if (transformer) await transformer.dispose();
-        console.timeEnd('transformation');
+        await transformer?.dispose();
     }
 }
 
