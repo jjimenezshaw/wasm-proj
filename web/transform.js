@@ -87,8 +87,7 @@ function showPointsInMap(proj, relative_path) {
     }
     const firstColumnIsId = document.getElementById('first-column-is-id').checked;
 
-    let [points, ids] = parseInputCoordinates(coords, firstColumnIsId);
-    points = points.map((e) => e.slice(0, 2));
+    const [points, ids] = parseInputCoordinates(coords, firstColumnIsId);
     relative_path ??= '.';
     let transformer;
     try {
@@ -105,6 +104,7 @@ function showPointsInMap(proj, relative_path) {
             ? ids.map((p) => encodeURIComponent(encodeURIComponent(p)))
             : Array.from({ length: transformed.length }, (_, i) => String(i + 1));
         const res = transformed
+            .map((e) => e.slice(0, 2))
             .map((point, idx) => `${labels[idx]},${point.map((e) => e.toFixed(6)).join(',')}`)
             .join(';');
         const mapUrl = `${relative_path}/pointsinmap.html?points=${res}`;
