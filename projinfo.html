@@ -66,7 +66,42 @@
               </div>
             </details>
           </div>
+
+          <div class="checkbox-group">
+            <button type="button" id="btn-advanced" class="btn-small btn-toggle">
+              Advanced Options <span class="toggle-icon">▼</span>
+            </button>
+          </div>
         </div>
+
+        <div id="advanced-options-panel" class="advanced-panel hidden">
+          <div class="field-inline">
+            <div class="file-group">
+              <label>Change Main Database</label>
+              <div class="file-input-wrapper">
+                <button type="button" class="btn-small" data-load="db-file">Select File</button>
+                <input type="file" id="db-file" class="hidden-file-input" accept=".db,.sqlite" >
+                <span id="db-file-name" class="file-name-display">No file selected</span>
+                <button type="button" class="btn-clear-file hidden" data-clear-file="db-file" title="Remove file">
+                  &times;
+                </button>
+              </div>
+            </div>
+
+            <div class="file-group">
+              <label>Set Auxiliary Databases</label>
+              <div class="file-input-wrapper">
+                <button type="button" class="btn-small" data-load="aux-files">Select Files</button>
+                <input type="file" id="aux-files" class="hidden-file-input" multiple accept=".db,.sqlite" >
+                <span id="aux-files-name" class="file-name-display">No files selected</span>
+                <button type="button" class="btn-clear-file hidden" data-clear-file="aux-files" title="Remove files">
+                  &times;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="container">
           <div class="column">
             <label

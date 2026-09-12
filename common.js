@@ -539,7 +539,11 @@ function setupEventListeners(proj_worker, proj, crs_list, only_projected_horizon
         resultsSection.classList.toggle('hide-diagrams', !e.target.checked);
     });
 
-    setupAdvancedOptions(proj, proj_worker, () => {
+    async function register(arg) {
+        proj.set_database(arg);
+        await proj_worker.set_database(arg);
+    }
+    setupAdvancedOptions(register, () => {
         updateComboboxes(get_crs_list(), only_projected_horizontal);
     });
 }
@@ -594,7 +598,7 @@ function get_crs_list() {
     return crs_list;
 }
 
-async function setupAdvancedOptions(proj, proj_worker, callback) {
+async function setupAdvancedOptions(register, callback) {
     const toggleBtn = document.getElementById('btn-advanced');
     const panel = document.getElementById('advanced-options-panel');
 
@@ -614,11 +618,6 @@ async function setupAdvancedOptions(proj, proj_worker, callback) {
         const display = document.getElementById(`${id}-name`);
         const clearBtn = document.querySelector(`[data-clear-file="${id}"]`);
 
-        async function set(arg) {
-            proj.set_database(arg);
-            await proj_worker.set_database(arg);
-        }
-
         // When the user selects files
         input.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
@@ -632,9 +631,9 @@ async function setupAdvancedOptions(proj, proj_worker, callback) {
                     dbs.push({ name: file.name, array_buffer: await file.arrayBuffer() });
                 }
                 if (id === 'db-file') {
-                    await set({ db: dbs[0] });
+                    await register({ db: dbs[0] });
                 } else {
-                    await set({ aux_dbs: dbs });
+                    await register({ aux_dbs: dbs });
                 }
                 // Show active state and clear button
                 display.classList.add('has-file');
@@ -649,9 +648,9 @@ async function setupAdvancedOptions(proj, proj_worker, callback) {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (id === 'db-file') {
-                    await set({ db: null });
+                    await register({ db: null });
                 } else {
-                    await set({ aux_dbs: null });
+                    await register({ aux_dbs: null });
                 }
                 resetAdvancedFileInput(id, display, clearBtn);
                 callback();
@@ -769,7 +768,7 @@ async function loadFromURLParams(crs_list, searchParams = undefined) {
     const params = searchParams ?? new URLSearchParams(window.location.search);
 
     if (params.get('nsrs_aux_db') === '1') {
-        await loadAuxDbUrl(crs_list);
+        await loadAuxDbUrlAndSet(proj, crs_list); // proj is global somewhere. Fixit.
     }
 
     if (params.has('st'))
@@ -836,7 +835,7 @@ function updateAfterLoadUrl(crs_list) {
     });
 }
 
-async function loadAuxDbUrl(crs_list, only_projected_horizontal) {
+async function loadAuxDbUrlAndSet(proj, crs_list, only_projected_horizontal) {
     const aux_db_url = 'https://jjimenezshaw.github.io/NSRS-2022-PROJ/nsrs_proj.db';
     console.time(`loading ${aux_db_url}`);
     try {
@@ -845,7 +844,9 @@ async function loadAuxDbUrl(crs_list, only_projected_horizontal) {
         const filename = aux_db_url.split('/').pop();
         const dbs = [{ name: filename, array_buffer: await file.arrayBuffer() }];
         proj.set_database({ aux_dbs: dbs });
-        await g_proj_worker.set_database({ aux_dbs: dbs });
+        if (crs_list) {
+            await g_proj_worker.set_database({ aux_dbs: dbs });
+        }
 
         const id = 'aux-files';
         const display = document.getElementById(`${id}-name`);
@@ -853,8 +854,10 @@ async function loadAuxDbUrl(crs_list, only_projected_horizontal) {
         display.textContent = filename;
         display.classList.add('has-file');
         clearBtn.classList.remove('hidden');
-        crs_list.splice(0, Infinity, ...get_crs_list());
-        updateComboboxes(crs_list, only_projected_horizontal);
+        if (crs_list) {
+            crs_list.splice(0, Infinity, ...get_crs_list());
+            updateComboboxes(crs_list, only_projected_horizontal);
+        }
         return true;
     } catch (e) {
         console.error(`error loading auxdb from ${aux_db_url}`, e);
